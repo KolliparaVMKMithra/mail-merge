@@ -568,7 +568,7 @@ body {
 .preview-content {
   padding: 16px;
   font-size: 0.88rem;
-  max-height: 180px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
