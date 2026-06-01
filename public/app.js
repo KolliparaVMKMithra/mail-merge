@@ -163,10 +163,10 @@ For further details, please find our **Course Template** attached. We look forwa
 Feel free to reach out for any additional information.
 
 Regards,
-Sreekrishna
-General Manager - Corporate Relations and Placements
+Sreekrishna Bathula
+General Manager - Corporate Relations & Placements
 Amrita Vishwa Vidyapeetham, Amaravati Campus
-Ph: +918555831697
+Mob: +91 8555831697
 b_sreekrishna@av.amrita.edu
 https://www.amrita.edu/`;
   }
@@ -641,17 +641,58 @@ function convertMarkdownToHtml(text) {
     // Check if it is a signature block
     const isSignature = block.toLowerCase().includes('regards') || block.toLowerCase().includes('sreekrishna');
     if (isSignature) {
-      const sigLines = lines.map(line => {
-        let lineContent = line.trim();
-        // Convert URLs and emails into links
-        if (lineContent.startsWith('http://') || lineContent.startsWith('https://')) {
-          lineContent = `<a href="${lineContent}" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: normal;">${lineContent}</a>`;
-        } else if (lineContent.includes('@') && !lineContent.includes(' ')) {
-          lineContent = `<a href="mailto:${lineContent}" style="color: #0066cc; text-decoration: none; font-weight: normal;">${lineContent}</a>`;
+      let name = "Sreekrishna Bathula";
+      let title = "General Manager - Corporate Relations & Placements";
+      let line1 = "Amrita Vishwa Vidyapeetham";
+      let line2 = "Amaravati Campus, Andhra Pradesh";
+      let email = "b_sreekrishna@av.amrita.edu";
+      let phone = "+91 8555831697";
+
+      lines.forEach(line => {
+        const text = line.trim();
+        if (text.toLowerCase().includes('sreekrishna') || text.toLowerCase().includes('bathula')) {
+          name = text.replace(/regards,?\s*/i, '').trim() || "Sreekrishna Bathula";
+          if (name.toLowerCase() === 'sreekrishna') {
+            name = "Sreekrishna Bathula";
+          }
+        } else if (text.toLowerCase().includes('general manager') || text.toLowerCase().includes('relations')) {
+          title = text.replace('and', '&').trim();
+        } else if (text.toLowerCase().includes('amrita') && !text.includes('@')) {
+          if (text.toLowerCase().includes('campus') || text.toLowerCase().includes('amaravati')) {
+            const parts = text.split(',');
+            line1 = parts[0].trim();
+            line2 = parts.slice(1).join(',').trim() || "Amaravati Campus, Andhra Pradesh";
+          } else {
+            line1 = text;
+          }
+        } else if (text.includes('@') && !text.includes(' ')) {
+          email = text;
+        } else if (text.toLowerCase().includes('ph:') || text.toLowerCase().includes('mob:') || text.toLowerCase().includes('tel:')) {
+          phone = text.replace(/(ph:|mob:|tel:)\s*/i, '').trim();
         }
-        return lineContent;
-      }).join('<br>');
-      return `<p style="margin: 0 0 16px 0; line-height: 1.6; color: #000000; font-size: 15px;">${sigLines}</p>`;
+      });
+
+      return `
+<p style="margin: 0 0 16px 0; line-height: 1.6; color: #000000; font-size: 15px;">Regards,</p>
+<table border="0" cellpadding="0" cellspacing="0" style="margin-top: 15px; margin-bottom: 15px; font-family: Arial, sans-serif; text-align: left;">
+  <tr>
+    <td valign="middle" style="padding-right: 15px; border-right: 3px solid #b50938;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Amrita-vishwa-vidyapeetham-logo.svg/260px-Amrita-vishwa-vidyapeetham-logo.svg.png" alt="Amrita Vishwa Vidyapeetham" width="220" style="display: block; border: 0; outline: none; text-decoration: none;">
+    </td>
+    <td valign="middle" style="padding-left: 15px; text-align: left; line-height: 1.45; font-family: Arial, sans-serif; color: #073a60;">
+      <div style="font-size: 16px; font-weight: bold; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 5px;">${name}</div>
+      <div style="font-size: 13px; font-weight: bold; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 2px;">${title}</div>
+      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 1px;">${line1}</div>
+      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 4px;">${line2}</div>
+      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif;">
+        <strong style="color: #073a60;">E-mail:</strong> <a href="mailto:${email}" style="color: #073a60; text-decoration: none;">${email}</a>
+      </div>
+      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif;">
+        <strong style="color: #073a60;">Mob:</strong> <a href="tel:${phone.replace(/\s+/g, '')}" style="color: #073a60; text-decoration: none;">${phone}</a>
+      </div>
+    </td>
+  </tr>
+</table>`;
     }
 
     // Default paragraph block
