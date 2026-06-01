@@ -698,7 +698,7 @@ function convertMarkdownToHtml(text) {
 <table border="0" cellpadding="0" cellspacing="0" style="margin-top: 15px; margin-bottom: 15px; font-family: Arial, sans-serif; text-align: left; line-height: 1.4;">
   <tr>
     <td valign="middle" style="padding-right: 15px; border-right: 2px solid #b50938;">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Amrita-vishwa-vidyapeetham-logo.svg/320px-Amrita-vishwa-vidyapeetham-logo.svg.png" alt="Amrita Vishwa Vidyapeetham" width="180" style="display: block; border: 0; outline: none; text-decoration: none;">
+      <img src="https://i0.wp.com/upload.wikimedia.org/wikipedia/commons/thumb/2/22/Amrita-vishwa-vidyapeetham-logo.svg/320px-Amrita-vishwa-vidyapeetham-logo.svg.png" alt="Amrita Vishwa Vidyapeetham" width="180" style="display: block; border: 0; outline: none; text-decoration: none;">
     </td>
     <td valign="middle" style="padding-left: 15px; text-align: left; font-family: Arial, sans-serif; color: #0b3a60;">
       <div style="font-size: 14px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 4px;">${name}</div>
