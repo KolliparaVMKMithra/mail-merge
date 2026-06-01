@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowMail - Power Automate Mail Merge</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- SheetJS for Parsing/Writing Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Decorative Background Glows -->
+  <div class="glow-bg-1"></div>
+  <div class="glow-bg-2"></div>
+
+  <div class="app-container">
+    <!-- App Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <i class="fa-solid fa-paper-plane logo-icon"></i>
+        <div>
+          <h1>FlowMail</h1>
+          <p class="subtitle">Power Automate Mail Merge Dashboard</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-guide" class="btn btn-secondary">
+          <i class="fa-solid fa-circle-info"></i> Power Automate Setup Guide
+        </button>
+        <div id="env-status" class="env-status-badge">
+          <span class="status-indicator"></span>
+          <span class="status-text">Checking server...</span>
+        </div>
+        <button id="btn-logout" class="btn btn-danger btn-sm">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Grid Workspace -->
+    <main class="app-grid">
+      
+      <!-- Left Column: Inputs & Data File Uploads -->
+      <section class="grid-col flex-column">
+        
+        <!-- Files Upload Card -->
+        <div class="card glass-card">
+          <div class="card-header">
+            <i class="fa-solid fa-file-invoice-dollar card-icon"></i>
+            <h2>Campaign Assets</h2>
+          </div>
+          <div class="card-body">
+            
+            <!-- Excel Upload Dropzone -->
+            <div class="upload-group">
+              <label class="field-label">1. Contact List (Excel Sheet)</label>
+              <div id="dropzone-excel" class="dropzone">
+                <input type="file" id="input-excel" accept=".xlsx, .xls" hidden>
+                <div class="dropzone-content">
+                  <i class="fa-solid fa-file-excel dropzone-icon excel-icon"></i>
+                  <h3>Drag & Drop Excel file</h3>
+                  <p class="dropzone-sub">Accepts .xlsx or .xls files only</p>
+                  <p class="dropzone-req">Must contain: <strong class="badge-req">Company Name</strong>, <strong class="badge-req">Name</strong>, <strong class="badge-req">Email</strong></p>
+                  <span class="btn btn-primary btn-sm">Browse File</span>
+                </div>
+                <div id="excel-file-info" class="file-info hidden">
+                  <div class="file-meta">
+                    <i class="fa-solid fa-file-circle-check info-icon"></i>
+                    <div>
+                      <span class="file-name">contacts.xlsx</span>
+                      <span class="file-details">124 rows parsed successfully</span>
+                    </div>
+                  </div>
+                  <button type="button" id="btn-clear-excel" class="btn-clear"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Attachment Upload Dropzone -->
+            <div class="upload-group mt-4">
+              <label class="field-label">2. Email Attachment <span class="optional-tag">(Optional - Max 25MB)</span></label>
+              <div id="dropzone-attachment" class="dropzone">
+                <input type="file" id="input-attachment" hidden>
+                <div class="dropzone-content">
+                  <i class="fa-solid fa-paperclip dropzone-icon"></i>
+                  <h3>Attach single file</h3>
+                  <p class="dropzone-sub">PDF, Word, Images, Zip, etc.</p>
+                  <span class="btn btn-secondary btn-sm">Browse File</span>
+                </div>
+                <div id="attachment-file-info" class="file-info hidden">
+                  <div class="file-meta">
+                    <i class="fa-solid fa-file-zipper info-icon"></i>
+                    <div>
+                      <span class="file-name">proposal.pdf</span>
+                      <span class="file-details">2.4 MB</span>
+                    </div>
+                  </div>
+                  <button type="button" id="btn-clear-attachment" class="btn-clear"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Email Composition & Dynamic Placeholders -->
+      <section class="grid-col flex-column">
+        
+        <!-- Email Template Card -->
+        <div class="card glass-card h-full flex-column">
+          <div class="card-header">
+            <i class="fa-solid fa-pen-nib card-icon"></i>
+            <h2>Email Composition</h2>
+          </div>
+          <div class="card-body compose-body flex-column h-full">
+            
+            <!-- Subject Line -->
+            <div class="form-group">
+              <label for="email-subject" class="field-label">Subject Line</label>
+              <input type="text" id="email-subject" class="form-control" placeholder="e.g. Partnership Proposal for {Company Name}">
+            </div>
+
+            <!-- Placeholder Helper Tags -->
+            <div class="placeholder-helper">
+              <span class="helper-title">Click to insert placeholder:</span>
+              <div class="tags-container">
+                <button class="tag-btn" data-tag="{Name}"><i class="fa-solid fa-user"></i> Name</button>
+                <button class="tag-btn" data-tag="{Company Name}"><i class="fa-solid fa-building"></i> Company Name</button>
+                <button class="tag-btn" data-tag="{Email}"><i class="fa-solid fa-envelope"></i> Email</button>
+              </div>
+            </div>
+
+            <!-- Email Body -->
+            <div class="form-group flex-grow">
+              <div class="flex-row justify-between align-center" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label for="email-body" class="field-label">Email Body</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chk-use-template" checked style="cursor: pointer; width: 14px; height: 14px; accent-color: #6366f1;">
+                  <label for="chk-use-template" class="field-label" style="cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #818cf8; user-select: none; margin: 0;">Use Elegant Template</label>
+                </div>
+              </div>
+              <textarea id="email-body" class="form-control body-textarea" placeholder="Hi {Name},&#10;&#10;We are writing to you at {Company Name} to propose..."></textarea>
+            </div>
+
+            <!-- Dynamic Live Preview Box -->
+            <div class="preview-section">
+              <div class="preview-header">
+                <span><i class="fa-solid fa-eye"></i> Dynamic Live Preview</span>
+                <span id="preview-row-index" class="preview-row-badge">Showing row: None</span>
+              </div>
+              <div class="preview-content">
+                <div class="preview-subject"><strong>Subject:</strong> <span id="preview-subject-text"></span></div>
+                <div class="preview-body" id="preview-body-text"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- Campaign Execution Card (Hidden initially, opens with animation) -->
+    <section id="campaign-panel" class="card glass-card campaign-panel hidden mt-6">
+      <div class="card-header border-none flex-row justify-between align-center">
+        <div class="flex-row align-center">
+          <i class="fa-solid fa-gears card-icon spinning-gear"></i>
+          <h2>Active Mail Campaign</h2>
+        </div>
+        <div class="campaign-controls">
+          <button id="btn-pause-campaign" class="btn btn-secondary btn-sm hidden">
+            <i class="fa-solid fa-pause"></i> Pause
+          </button>
+          <button id="btn-cancel-campaign" class="btn btn-danger btn-sm hidden">
+            <i class="fa-solid fa-stop"></i> Stop
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        
+        <!-- Live Dashboard Metrics Grid -->
+        <div class="metrics-grid">
+          
+          <div class="metric-card glass-metric">
+            <div class="metric-circle-container">
+              <svg class="progress-ring" width="120" height="120">
+                <circle class="progress-ring-circle-bg" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="transparent" r="50" cx="60" cy="60"/>
+                <circle id="progress-circle" class="progress-ring-circle" stroke="url(#gradient)" stroke-width="8" fill="transparent" r="50" cx="60" cy="60"/>
+                <defs>
+                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#6366f1" />
+                    <stop offset="100%" stop-color="#a855f7" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div id="progress-percentage" class="metric-circle-text">0%</div>
+            </div>
+            <div class="metric-label">Overall Progress</div>
+          </div>
+
+          <div class="metric-stats">
+            <div class="stat-box">
+              <div class="stat-icon-wrapper blue"><i class="fa-solid fa-envelope"></i></div>
+              <div class="stat-content">
+                <span id="stat-total" class="stat-number">0</span>
+                <span class="stat-label">Total Emails</span>
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-icon-wrapper green"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="stat-content">
+                <span id="stat-sent" class="stat-number text-green">0</span>
+                <span class="stat-label">Sent Successfully</span>
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-icon-wrapper red"><i class="fa-solid fa-circle-xmark"></i></div>
+              <div class="stat-content">
+                <span id="stat-failed" class="stat-number text-red">0</span>
+                <span class="stat-label">Failed Mails</span>
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-icon-wrapper amber"><i class="fa-solid fa-hourglass-half"></i></div>
+              <div class="stat-content">
+                <span id="stat-remaining" class="stat-number text-amber">0</span>
+                <span class="stat-label">Remaining</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Terminal Logs Panel -->
+        <div class="terminal-container mt-4">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <span class="terminal-title">Real-Time Campaign Output Log</span>
+            <button id="btn-clear-logs" class="btn-clear-logs"><i class="fa-solid fa-trash-can"></i> Clear</button>
+          </div>
+          <div id="terminal-body" class="terminal-body">
+            <div class="log-line system">[SYSTEM] Ready to trigger mail campaign. Please upload an Excel sheet and fill in the composition.</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Contacts Table Section -->
+    <section class="card glass-card mt-6">
+      <div class="card-header flex-row justify-between align-center">
+        <div class="flex-row align-center">
+          <i class="fa-solid fa-table-list card-icon"></i>
+          <h2>Contact Verification List</h2>
+        </div>
+        <div class="flex-row align-center gap-3">
+          <span id="contacts-count-badge" class="badge hidden">0 Contacts Loaded</span>
+          <button id="btn-download-report" class="btn btn-secondary btn-sm" disabled>
+            <i class="fa-solid fa-file-arrow-down"></i> Download Status Report
+          </button>
+          <button id="btn-start-campaign" class="btn btn-glow" disabled>
+            <i class="fa-solid fa-rocket"></i> Launch Campaign
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <!-- Loader / Placeholder before uploading -->
+        <div id="table-placeholder" class="table-placeholder">
+          <i class="fa-solid fa-database placeholder-icon"></i>
+          <h3>No Data Loaded</h3>
+          <p>Upload an Excel list above to preview contact details here before sending.</p>
+        </div>
+        <!-- Scrollable Table -->
+        <div id="table-wrapper" class="table-wrapper hidden">
+          <table class="contacts-table">
+            <thead>
+              <tr>
+                <th width="80px">Row</th>
+                <th>Company Name</th>
+                <th>Name</th>
+                <th>Email Address</th>
+                <th>Status</th>
+                <th>Logs</th>
+              </tr>
+            </thead>
+            <tbody id="contacts-table-body">
+              <!-- Dynamically Populated Rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- POWER AUTOMATE SETUP GUIDE MODAL -->
+  <div id="guide-modal" class="modal-overlay hidden">
+    <div class="modal glass-modal">
+      <div class="modal-header">
+        <div class="flex-row align-center">
+          <i class="fa-solid fa-circle-info modal-title-icon text-indigo"></i>
+          <h2>Microsoft Power Automate Setup Guide</h2>
+        </div>
+        <button id="btn-close-modal" class="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        
+        <p class="modal-intro">
+          This dashboard triggers emails by sending HTTP POST requests to an instant cloud flow inside Microsoft Power Automate. 
+          Follow these simple steps to configure your webhook and connect it to your Outlook email account.
+        </p>
+
+        <div class="step-guide">
+          <!-- Step 1 -->
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h3>Create Instant Cloud Flow</h3>
+              <p>Sign in to <a href="https://make.powerautomate.com" target="_blank" class="link-glow">Power Automate</a>, navigate to <strong>"Create"</strong>, and choose <strong>"Instant cloud flow"</strong>. Choose a name and select <strong>"When an HTTP request is received"</strong> as the trigger, then click Create.</p>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h3>Paste Trigger JSON Schema</h3>
+              <p>In the trigger configuration, click <strong>"Use sample payload to generate schema"</strong> and paste the JSON schema below. Power Automate will automatically configure the data parameters.</p>
+              
+              <div class="schema-code-block">
+                <div class="code-header">
+                  <span>JSON Payload Schema</span>
+                  <button id="btn-copy-schema" class="btn-copy"><i class="fa-regular fa-copy"></i> Copy Schema</button>
+                </div>
+                <pre><code id="schema-code">{
+  "type": "object",
+  "properties": {
+    "email": { "type": "string" },
+    "name": { "type": "string" },
+    "companyName": { "type": "string" },
+    "subject": { "type": "string" },
+    "body": { "type": "string" },
+    "attachment": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contentBytes": { "type": "string" }
+      }
+    }
+  }
+}</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h3>Add Email Sending Action</h3>
+              <p>Click <strong>"New step"</strong> and add the <strong>"Send an email (V2)"</strong> action (from Office 365 Outlook or Outlook.com).</p>
+              <ul class="step-bullets">
+                <li><strong>To</strong>: Select <span class="badge-dynamic">email</span> from the dynamic content trigger.</li>
+                <li><strong>Subject</strong>: Select <span class="badge-dynamic">subject</span> from the dynamic content trigger.</li>
+                <li><strong>Body</strong>: Select <span class="badge-dynamic">body</span> from the dynamic content trigger (set format to HTML if you plan to send HTML-formatted emails).</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <h3>Configure Dynamic Attachment</h3>
+              <p>Click <strong>"Show advanced options"</strong> at the bottom of the Email Action card.</p>
+              <ul class="step-bullets">
+                <li>Under <strong>Attachments - 1 Name</strong>: Click and select <span class="badge-dynamic">attachment / name</span> from the dynamic content trigger.</li>
+                <li>Under <strong>Attachments - 1 Content</strong>: Go to the "Expression" panel in the dynamic window and enter the following formula to translate our Base64 string back into binary:
+                  <div class="formula-block">
+                    <code>base64ToBinary(triggerBody()?['attachment']?['contentBytes'])</code>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-content">
+              <h3>Save Flow & Copy URL</h3>
+              <p>Click <strong>"Save"</strong>. Power Automate will now generate a unique HTTP POST URL inside the trigger. Copy this URL, open the `.env` file in your workspace, and paste it into the <code>POWER_AUTOMATE_URL</code> variable.</p>
+              <div class="formula-block text-center">
+                <code>POWER_AUTOMATE_URL="https://prod-..."</code>
+              </div>
+              <p class="mt-2 text-sm text-yellow-dim"><i class="fa-solid fa-triangle-exclamation"></i> Make sure to restart your Express backend after updating your `.env` file!</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="btn-close-modal-bottom" class="btn btn-primary">Got it, Let's Go!</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

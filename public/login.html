@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowMail - Sign In</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Custom High-Fidelity Login Layout and Animations */
+    .login-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      z-index: 1;
+      position: relative;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+      animation: card-float-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes card-float-in {
+      0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.96);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .login-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .login-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 5px;
+    }
+
+    .login-logo .logo-icon {
+      font-size: 2.5rem;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 15px var(--primary-glow));
+      animation: logo-pulse 4s infinite ease-in-out;
+    }
+
+    @keyframes logo-pulse {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.08) rotate(-5deg); }
+    }
+
+    .login-logo h1 {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .login-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    /* Elegant Floating & Animated Input Form Fields */
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-field-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-field-container .form-control {
+      width: 100%;
+      padding-left: 45px;
+      padding-right: 45px;
+      height: 50px;
+      font-size: 0.95rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      transition: var(--transition-smooth);
+    }
+
+    .input-field-container .form-control:focus {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--primary-color);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+    }
+
+    .input-icon-left {
+      position: absolute;
+      left: 16px;
+      color: var(--text-dim);
+      font-size: 1.05rem;
+      transition: var(--transition-smooth);
+      pointer-events: none;
+    }
+
+    .input-field-container .form-control:focus ~ .input-icon-left {
+      color: var(--primary-color);
+      filter: drop-shadow(0 0 5px var(--primary-glow));
+    }
+
+    .btn-toggle-password {
+      position: absolute;
+      right: 16px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 1.05rem;
+      padding: 0;
+      transition: var(--transition-smooth);
+    }
+
+    .btn-toggle-password:hover {
+      color: var(--text-primary);
+    }
+
+    /* Custom Floating Action Banner for Errors */
+    .error-alert {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      padding: 12px 16px;
+      border-radius: 12px;
+      color: #f87171;
+      font-size: 0.88rem;
+      font-weight: 500;
+      animation: alert-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .error-alert.hidden {
+      display: none;
+    }
+
+    @keyframes alert-slide-down {
+      0% {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .error-icon {
+      font-size: 1.15rem;
+      color: var(--error-color);
+      flex-shrink: 0;
+    }
+
+    /* Submit Button styling */
+    .login-btn {
+      width: 100%;
+      height: 50px;
+      font-size: 1rem;
+      border-radius: 12px;
+      margin-top: 10px;
+    }
+
+    .login-btn .btn-loader {
+      display: none;
+    }
+
+    .login-btn.loading .btn-text {
+      display: none;
+    }
+
+    .login-btn.loading .btn-loader {
+      display: inline-block;
+      animation: spin 1s infinite linear;
+    }
+
+    .login-footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Decorative Background Glows -->
+  <div class="glow-bg-1"></div>
+  <div class="glow-bg-2"></div>
+
+  <div class="login-wrapper">
+    <div class="card glass-card login-card">
+      
+      <!-- Login Header -->
+      <div class="login-header">
+        <div class="login-logo">
+          <i class="fa-solid fa-paper-plane logo-icon"></i>
+          <h1>FlowMail</h1>
+        </div>
+        <p class="login-subtitle">Power Automate Mail Merge Dashboard</p>
+      </div>
+
+      <!-- Live Error Banner -->
+      <div id="error-alert" class="error-alert hidden">
+        <i class="fa-solid fa-circle-exclamation error-icon"></i>
+        <span id="error-message">Invalid email or password.</span>
+      </div>
+
+      <!-- Credentials Form -->
+      <form id="login-form" class="flex-column" style="gap: 20px;">
+        <!-- Email Input -->
+        <div class="input-wrapper">
+          <label for="email" class="field-label">Email Address</label>
+          <div class="input-field-container">
+            <input 
+              type="email" 
+              id="email" 
+              class="form-control" 
+              placeholder="name@example.com" 
+              required 
+              autocomplete="username"
+            >
+            <i class="fa-solid fa-envelope input-icon-left"></i>
+          </div>
+        </div>
+
+        <!-- Password Input -->
+        <div class="input-wrapper">
+          <label for="password" class="field-label">Password</label>
+          <div class="input-field-container">
+            <input 
+              type="password" 
+              id="password" 
+              class="form-control" 
+              placeholder="••••••••" 
+              required 
+              autocomplete="current-password"
+            >
+            <i class="fa-solid fa-lock input-icon-left"></i>
+            <button type="button" id="btn-toggle-pwd" class="btn-toggle-password" aria-label="Toggle Password Visibility">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btn-login" class="btn btn-glow login-btn">
+          <span class="btn-text"><i class="fa-solid fa-right-to-bracket"></i> Sign In</span>
+          <i class="fa-solid fa-spinner fa-spin btn-loader"></i>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p>Authorized access only. Security logs active.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const loginForm = document.getElementById('login-form');
+      const emailInput = document.getElementById('email');
+      const passwordInput = document.getElementById('password');
+      const btnTogglePwd = document.getElementById('btn-toggle-pwd');
+      const btnLogin = document.getElementById('btn-login');
+      const errorAlert = document.getElementById('error-alert');
+      const errorMessage = document.getElementById('error-message');
+
+      // Toggle Password Visibility
+      btnTogglePwd.addEventListener('click', () => {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        const icon = btnTogglePwd.querySelector('i');
+        if (type === 'text') {
+          icon.className = 'fa-solid fa-eye-slash';
+        } else {
+          icon.className = 'fa-solid fa-eye';
+        }
+      });
+
+      // Submit Form Handler
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Clear previous error
+        errorAlert.classList.add('hidden');
+        
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        // Perform layout loading state
+        btnLogin.classList.add('loading');
+        btnLogin.disabled = true;
+
+        try {
+          const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            // Success: redirect to main dashboard
+            window.location.href = '/index.html';
+          } else {
+            // Display exact error message returned from backend
+            showError(result.error || 'Authentication failed. Please verify credentials.');
+          }
+        } catch (err) {
+          console.error('Login request error:', err);
+          showError('Network error connecting to authentication server.');
+        } finally {
+          btnLogin.classList.remove('loading');
+          btnLogin.disabled = false;
+        }
+      });
+
+      function showError(msg) {
+        errorMessage.textContent = msg;
+        errorAlert.classList.remove('hidden');
+        // Simple vibration feedback or entrance scale pulse
+        errorAlert.style.animation = 'none';
+        errorAlert.offsetHeight; /* trigger reflow */
+        errorAlert.style.animation = 'alert-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both';
+      }
+    });
+  </script>
+</body>
+</html>
