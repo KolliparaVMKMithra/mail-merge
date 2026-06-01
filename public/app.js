@@ -700,15 +700,15 @@ function convertMarkdownToHtml(text) {
     <td valign="middle" style="padding-right: 15px; border-right: 2px solid #b50938;">
       <img src="/amrita-logo.png" alt="Amrita Vishwa Vidyapeetham" width="180" style="display: block; border: 0; outline: none; text-decoration: none;">
     </td>
-    <td valign="middle" style="padding-left: 15px; text-align: left; font-family: Arial, sans-serif; color: #0b3a60;">
-      <div style="font-size: 14px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 4px;">${name}</div>
-      <div style="font-size: 11px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 2px;">${title}</div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 1px;">${line1}</div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 4px;">${line2}</div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 1px;">
+    <td valign="middle" style="padding-left: 15px; text-align: left; font-family: Arial, sans-serif; color: #0b3a60; line-height: 1.25;">
+      <div style="font-size: 14px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 2px;">${name}</div>
+      <div style="font-size: 11px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 2px;">${title}</div>
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 1px;">${line1}</div>
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 3px;">${line2}</div>
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 1px;">
         <span style="color: #555555;">E-mail:</span> <a href="mailto:${email}" style="color: #0b3a60; text-decoration: none; font-weight: bold;">${email}</a>
       </div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif;">
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25;">
         <span style="color: #555555;">Mob:</span> <a href="tel:${phone.replace(/\s+/g, '')}" style="color: #0b3a60; text-decoration: none; font-weight: bold;">${phone}</a>
       </div>
     </td>
