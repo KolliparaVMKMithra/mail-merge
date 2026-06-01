@@ -650,45 +650,66 @@ function convertMarkdownToHtml(text) {
 
       lines.forEach(line => {
         const text = line.trim();
+        if (!text) return;
+
+        // 1. Skip website line to prevent it from matching general "amrita" rules
+        if (text.toLowerCase().startsWith('http') || text.toLowerCase().startsWith('www.')) {
+          return;
+        }
+
+        // 2. Email parsing (must take precedence to prevent it from matching name containing 'sreekrishna')
+        if (text.includes('@')) {
+          email = text;
+          return;
+        }
+
+        // 3. Phone parsing
+        if (text.toLowerCase().includes('ph:') || text.toLowerCase().includes('mob:') || text.toLowerCase().includes('tel:') || text.includes('+91')) {
+          phone = text.replace(/(ph:|mob:|tel:)\s*/i, '').trim();
+          return;
+        }
+
+        // 4. Name parsing (avoiding regards line and title lines)
         if (text.toLowerCase().includes('sreekrishna') || text.toLowerCase().includes('bathula')) {
           name = text.replace(/regards,?\s*/i, '').trim() || "Sreekrishna Bathula";
-          if (name.toLowerCase() === 'sreekrishna') {
-            name = "Sreekrishna Bathula";
-          }
-        } else if (text.toLowerCase().includes('general manager') || text.toLowerCase().includes('relations')) {
-          title = text.replace('and', '&').trim();
-        } else if (text.toLowerCase().includes('amrita') && !text.includes('@')) {
-          if (text.toLowerCase().includes('campus') || text.toLowerCase().includes('amaravati')) {
+          return;
+        }
+
+        // 5. Title parsing
+        if (text.toLowerCase().includes('manager') || text.toLowerCase().includes('relations') || text.toLowerCase().includes('placements')) {
+          title = text;
+          return;
+        }
+
+        // 6. Campus parsing
+        if (text.toLowerCase().includes('amrita') || text.toLowerCase().includes('campus') || text.toLowerCase().includes('amaravati') || text.toLowerCase().includes('pradesh')) {
+          if (text.toLowerCase().includes('campus') || text.toLowerCase().includes('amaravati') || text.toLowerCase().includes('pradesh')) {
             const parts = text.split(',');
             line1 = parts[0].trim();
             line2 = parts.slice(1).join(',').trim() || "Amaravati Campus, Andhra Pradesh";
           } else {
             line1 = text;
           }
-        } else if (text.includes('@') && !text.includes(' ')) {
-          email = text;
-        } else if (text.toLowerCase().includes('ph:') || text.toLowerCase().includes('mob:') || text.toLowerCase().includes('tel:')) {
-          phone = text.replace(/(ph:|mob:|tel:)\s*/i, '').trim();
         }
       });
 
       return `
 <p style="margin: 0 0 16px 0; line-height: 1.6; color: #000000; font-size: 15px;">Regards,</p>
-<table border="0" cellpadding="0" cellspacing="0" style="margin-top: 15px; margin-bottom: 15px; font-family: Arial, sans-serif; text-align: left;">
+<table border="0" cellpadding="0" cellspacing="0" style="margin-top: 15px; margin-bottom: 15px; font-family: Arial, sans-serif; text-align: left; line-height: 1.4;">
   <tr>
-    <td valign="middle" style="padding-right: 15px; border-right: 3px solid #b50938;">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Amrita-vishwa-vidyapeetham-logo.svg/260px-Amrita-vishwa-vidyapeetham-logo.svg.png" alt="Amrita Vishwa Vidyapeetham" width="220" style="display: block; border: 0; outline: none; text-decoration: none;">
+    <td valign="middle" style="padding-right: 15px; border-right: 2px solid #b50938;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Amrita-vishwa-vidyapeetham-logo.svg/320px-Amrita-vishwa-vidyapeetham-logo.svg.png" alt="Amrita Vishwa Vidyapeetham" width="180" style="display: block; border: 0; outline: none; text-decoration: none;">
     </td>
-    <td valign="middle" style="padding-left: 15px; text-align: left; line-height: 1.45; font-family: Arial, sans-serif; color: #073a60;">
-      <div style="font-size: 16px; font-weight: bold; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 5px;">${name}</div>
-      <div style="font-size: 13px; font-weight: bold; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 2px;">${title}</div>
-      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 1px;">${line1}</div>
-      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif; margin-bottom: 4px;">${line2}</div>
-      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif;">
-        <strong style="color: #073a60;">E-mail:</strong> <a href="mailto:${email}" style="color: #073a60; text-decoration: none;">${email}</a>
+    <td valign="middle" style="padding-left: 15px; text-align: left; font-family: Arial, sans-serif; color: #0b3a60;">
+      <div style="font-size: 14px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 4px;">${name}</div>
+      <div style="font-size: 11px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 2px;">${title}</div>
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 1px;">${line1}</div>
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 4px;">${line2}</div>
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; margin-bottom: 1px;">
+        <span style="color: #555555;">E-mail:</span> <a href="mailto:${email}" style="color: #0b3a60; text-decoration: none; font-weight: bold;">${email}</a>
       </div>
-      <div style="font-size: 12px; color: #073a60; font-family: Arial, sans-serif;">
-        <strong style="color: #073a60;">Mob:</strong> <a href="tel:${phone.replace(/\s+/g, '')}" style="color: #073a60; text-decoration: none;">${phone}</a>
+      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif;">
+        <span style="color: #555555;">Mob:</span> <a href="tel:${phone.replace(/\s+/g, '')}" style="color: #0b3a60; text-decoration: none; font-weight: bold;">${phone}</a>
       </div>
     </td>
   </tr>
