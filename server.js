@@ -243,13 +243,19 @@ app.post('/api/send-email', requireAuth, async (req, res) => {
       }
     }
 
+    // Convert relative logo paths to absolute public URLs for email clients
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.headers.host;
+    const absoluteLogoUrl = `${protocol}://${host}/amrita-logo.png`;
+    const processedBody = body.replace(/\/amrita-logo\.png/g, absoluteLogoUrl).replace(/amrita-logo\.png/g, absoluteLogoUrl);
+
     // Construct the payload for Power Automate HTTP Trigger
     const payload = {
       email: recipientEmail.trim(),
       name: recipientName.trim(),
       companyName: (recipientCompany || '').trim(),
       subject: subject,
-      body: body
+      body: processedBody
     };
 
     if (attachmentPayload) {
