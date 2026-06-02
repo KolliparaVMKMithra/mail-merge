@@ -699,7 +699,7 @@ function convertMarkdownToHtml(text) {
 <table border="0" cellpadding="0" cellspacing="0" style="margin-top:8px;font-family:Arial,Helvetica,sans-serif;border-collapse:collapse;">
   <tr>
     <td valign="middle" style="padding-right:18px;border-right:4px solid #b50938;">
-      <img src="/amrita-logo.png" alt="Amrita Vishwa Vidyapeetham" width="200" style="display:block;border:0;outline:none;text-decoration:none;">
+      <img src="https://res.cloudinary.com/drcjc86ft/image/upload/v1780379219/amrita-logo_rz98xn.png" alt="Amrita Vishwa Vidyapeetham" width="200" style="display:block;border:0;outline:none;text-decoration:none;">
     </td>
     <td valign="middle" style="padding-left:18px;line-height:1.0;">
       <table border="0" cellpadding="0" cellspacing="0">
