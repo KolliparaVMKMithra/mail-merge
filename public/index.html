@@ -31,6 +31,14 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="nav-tabs">
+          <button id="tab-mail-merge" class="nav-tab active">
+            <i class="fa-solid fa-envelope-open-text"></i> Mail Merge
+          </button>
+          <button id="tab-linkedin-jobs" class="nav-tab">
+            <i class="fa-brands fa-linkedin"></i> LinkedIn Jobs
+          </button>
+        </div>
         <button id="btn-guide" class="btn btn-secondary">
           <i class="fa-solid fa-circle-info"></i> Power Automate Setup Guide
         </button>
@@ -44,8 +52,10 @@
       </div>
     </header>
 
-    <!-- Main Grid Workspace -->
-    <main class="app-grid">
+    <!-- Mail Merge View Pane -->
+    <div id="view-mail-merge" class="view-pane">
+      <!-- Main Grid Workspace -->
+      <main class="app-grid">
       
       <!-- Left Column: Inputs & Data File Uploads -->
       <section class="grid-col flex-column">
@@ -306,6 +316,95 @@
         </div>
       </div>
     </section>
+    </div> <!-- /#view-mail-merge -->
+
+    <!-- LinkedIn Jobs View Pane -->
+    <div id="view-linkedin-jobs" class="view-pane hidden">
+      <!-- Key Missing Warning Banner -->
+      <div id="jobs-api-warning" class="card glass-card mt-4 hidden" style="border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.03);">
+        <div class="card-body" style="padding: 16px 24px; display: flex; align-items: center; gap: 16px;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; color: var(--warning-color);"></i>
+          <div style="flex-grow: 1;">
+            <h4 style="color: #fff; font-weight: 600; margin-bottom: 2px;">Mock Mode (JSearch API Key Missing)</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
+              You are currently viewing offline mock data. To search real job listings globally in real-time, register for a free key on <a href="https://rapidapi.com/letscrape-6zs7a865s/api/jsearch" target="_blank" style="color: #818cf8; text-decoration: underline;">JSearch RapidAPI</a> and set it as <code>RAPIDAPI_KEY="your_key"</code> in your <code>.env</code> file.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Summary Row -->
+      <div class="metrics-summary-row mt-4">
+        <div class="metric-card glass-metric flex-row align-center justify-between">
+          <div class="metric-content">
+            <span id="metric-total-jobs" class="metric-number">0</span>
+            <span class="metric-label">Total Listings</span>
+          </div>
+          <div class="metric-icon-circle blue"><i class="fa-brands fa-linkedin-in"></i></div>
+        </div>
+        <div class="metric-card glass-metric flex-row align-center justify-between">
+          <div class="metric-content">
+            <span id="metric-ready-pitch" class="metric-number">0</span>
+            <span class="metric-label">Ready to Pitch</span>
+          </div>
+          <div class="metric-icon-circle amber"><i class="fa-solid fa-bullhorn"></i></div>
+        </div>
+      </div>
+
+      <!-- Filter and Search Bar -->
+      <div class="filter-bar card glass-card mt-6">
+        <div class="card-body flex-row justify-between align-center gap-4 flex-wrap" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px;">
+          <div class="search-input-group flex-grow">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="job-search-input" class="form-control" placeholder="Search by company or job title...">
+          </div>
+          <div class="filter-controls flex-row gap-3" style="display: flex; align-items: center; gap: 12px; flex-grow: 0.5;">
+            <div class="search-input-group flex-grow" style="position: relative;">
+              <i class="fa-solid fa-location-dot search-icon" style="color: var(--text-dim);"></i>
+              <input type="text" id="job-location-input" class="form-control" placeholder="Location (e.g. Hyderabad)" value="Hyderabad" style="padding-left: 40px;">
+            </div>
+            <button id="btn-refresh-jobs" class="btn btn-secondary" style="white-space: nowrap;">
+              <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jobs Pipeline Card -->
+      <section class="card glass-card mt-6">
+        <div class="card-header flex-row justify-between align-center">
+          <div class="flex-row align-center">
+            <i class="fa-solid fa-briefcase card-icon"></i>
+            <h2>LinkedIn Placements Pipeline</h2>
+          </div>
+          <span class="badge" id="jobs-count-badge">0 Postings Found</span>
+        </div>
+        <div class="card-body p-0">
+          <div id="jobs-table-placeholder" class="table-placeholder hidden" style="text-align: center; padding: 40px 20px;">
+            <i class="fa-solid fa-magnifying-glass placeholder-icon" style="font-size: 2.5rem; color: var(--text-dim); margin-bottom: 12px; display: block;"></i>
+            <h3>No Jobs Found</h3>
+            <p style="color: var(--text-dim); margin-top: 4px;">Try adjusting your search terms or filter selection.</p>
+          </div>
+          <div id="jobs-table-wrapper" class="table-wrapper">
+            <table class="contacts-table jobs-table">
+              <thead>
+                <tr>
+                  <th width="60px">Logo</th>
+                  <th>Company</th>
+                  <th>Job Title</th>
+                  <th>Location</th>
+                  <th>Posted Date</th>
+                  <th width="200px" style="text-align: right; padding-right: 24px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="jobs-table-body">
+                <!-- Dynamically populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div> <!-- /#view-linkedin-jobs -->
   </div>
 
   <!-- POWER AUTOMATE SETUP GUIDE MODAL -->

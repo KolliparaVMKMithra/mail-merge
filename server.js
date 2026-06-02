@@ -329,6 +329,166 @@ app.post('/api/cleanup', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * Retrieve list of job postings from jobs.json
+ */
+app.get('/api/linkedin-jobs', requireAuth, async (req, res) => {
+  const q = req.query.q || '';
+  const location = req.query.location || '';
+
+  const apiKey = process.env.RAPIDAPI_KEY;
+
+  if (apiKey && apiKey.trim() !== '') {
+    try {
+      console.log(`[JOBS API] Fetching real-time jobs from JSearch. Query: "${q}", Location: "${location}"`);
+      const searchQuery = `${q} ${location}`.trim() || 'Software Engineer';
+      const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(searchQuery)}&page=1&num_pages=1`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': apiKey.trim(),
+          'X-RapidAPI-Host': 'jsearch.p.rapidapi.com'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`JSearch API responded with status ${response.status}`);
+      }
+
+      const apiResult = await response.json();
+      const apiJobs = apiResult.data || [];
+
+      const normalizedJobs = apiJobs.map((job, idx) => {
+        let jobLoc = '';
+        if (job.job_city) jobLoc += job.job_city;
+        if (job.job_state) jobLoc += (jobLoc ? ', ' : '') + job.job_state;
+        if (job.job_country) jobLoc += (jobLoc ? ', ' : '') + job.job_country;
+        if (!jobLoc) jobLoc = job.job_location || location || 'Remote';
+
+        return {
+          id: job.job_id || `job-api-${idx}-${Date.now()}`,
+          companyName: job.employer_name || 'Unknown Company',
+          title: job.job_title || 'Software Engineer',
+          location: jobLoc,
+          link: job.job_apply_link || 'https://www.linkedin.com/jobs',
+          postedDate: job.job_posted_at_datetime_utc || new Date().toISOString()
+        };
+      });
+
+      return res.json({
+        success: true,
+        hasRealTimeData: true,
+        jobs: normalizedJobs
+      });
+
+    } catch (error) {
+      console.error('[JOBS API] Failed to fetch from JSearch, falling back to local database:', error);
+      // Fall through to fallback mock data
+    }
+  }
+
+  // Fallback / Mock Data Logic
+  try {
+    const jobsPath = path.join(__dirname, 'jobs.json');
+    let data;
+    try {
+      data = await fs.readFile(jobsPath, 'utf8');
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        const defaultJobs = [
+          {
+            "id": "job-001",
+            "companyName": "Microsoft",
+            "title": "Software Engineer Intern",
+            "location": "Hyderabad, Telangana",
+            "link": "https://www.linkedin.com/jobs/view/4012938481",
+            "postedDate": "2026-06-01T10:00:00Z"
+          },
+          {
+            "id": "job-002",
+            "companyName": "TCS",
+            "title": "Frontend Developer",
+            "location": "Hyderabad, Telangana",
+            "link": "https://www.linkedin.com/jobs/view/4028374921",
+            "postedDate": "2026-06-01T08:30:00Z"
+          },
+          {
+            "id": "job-003",
+            "companyName": "Wipro",
+            "title": "Data Analyst",
+            "location": "Hyderabad, Telangana",
+            "link": "https://www.linkedin.com/jobs/view/4039281745",
+            "postedDate": "2026-05-31T14:20:00Z"
+          },
+          {
+            "id": "job-004",
+            "companyName": "Infosys",
+            "title": "Systems Engineer",
+            "location": "Bangalore, Karnataka",
+            "link": "https://www.linkedin.com/jobs/view/4048372910",
+            "postedDate": "2026-05-31T09:00:00Z"
+          },
+          {
+            "id": "job-005",
+            "companyName": "Accenture",
+            "title": "Salesforce Developer",
+            "location": "Hyderabad, Telangana",
+            "link": "https://www.linkedin.com/jobs/view/4059283741",
+            "postedDate": "2026-05-30T11:45:00Z"
+          },
+          {
+            "id": "job-006",
+            "companyName": "Amazon",
+            "title": "Quality Assurance Engineer",
+            "location": "Hyderabad, Telangana",
+            "link": "https://www.linkedin.com/jobs/view/4069382711",
+            "postedDate": "2026-05-30T16:10:00Z"
+          },
+          {
+            "id": "job-007",
+            "companyName": "Tech Mahindra",
+            "title": "Associate Software Engineer",
+            "location": "Hyderabad, Telangana",
+            "link": "https://www.linkedin.com/jobs/view/4078371928",
+            "postedDate": "2026-05-29T13:00:00Z"
+          }
+        ];
+        await fs.writeFile(jobsPath, JSON.stringify(defaultJobs, null, 2), 'utf8');
+        data = JSON.stringify(defaultJobs);
+      } else {
+        throw err;
+      }
+    }
+    const jobs = JSON.parse(data);
+
+    let filteredJobs = jobs;
+    if (q.trim() !== '') {
+      const qLower = q.toLowerCase().trim();
+      filteredJobs = filteredJobs.filter(job => 
+        job.companyName.toLowerCase().includes(qLower) || 
+        job.title.toLowerCase().includes(qLower)
+      );
+    }
+    if (location.trim() !== '') {
+      const locLower = location.toLowerCase().trim();
+      filteredJobs = filteredJobs.filter(job => 
+        job.location.toLowerCase().includes(locLower)
+      );
+    }
+
+    res.json({ 
+      success: true, 
+      hasRealTimeData: false, 
+      jobs: filteredJobs 
+    });
+
+  } catch (error) {
+    console.error('Error reading jobs.json:', error);
+    res.status(500).json({ success: false, error: 'Failed to retrieve job listings.' });
+  }
+});
+
 // Periodic background cleanup — deletes files older than 1 hour every 15 minutes
 setInterval(async () => {
   try {
