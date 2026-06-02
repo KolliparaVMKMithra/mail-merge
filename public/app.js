@@ -5,7 +5,7 @@
 
 // Intercept all fetch requests globally to handle 401 Unauthorized
 const originalFetch = window.fetch;
-window.fetch = async function(...args) {
+window.fetch = async function (...args) {
   try {
     const response = await originalFetch(...args);
     if (response.status === 401) {
@@ -56,7 +56,7 @@ const elements = {
   envStatusText: document.querySelector('#env-status .status-text'),
   btnGuide: document.getElementById('btn-guide'),
   btnLogout: document.getElementById('btn-logout'),
-  
+
   // Guide Modal
   guideModal: document.getElementById('guide-modal'),
   btnCloseModal: document.getElementById('btn-close-modal'),
@@ -92,7 +92,7 @@ const elements = {
   btnPauseCampaign: document.getElementById('btn-pause-campaign'),
   btnCancelCampaign: document.getElementById('btn-cancel-campaign'),
   btnDownloadReport: document.getElementById('btn-download-report'),
-  
+
   statTotal: document.getElementById('stat-total'),
   statSent: document.getElementById('stat-sent'),
   statFailed: document.getElementById('stat-failed'),
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (elements.emailSubject && !elements.emailSubject.value) {
     elements.emailSubject.value = "Invitation for Campus Recruitment Drive - Amrita Vishwa Vidyapeetham";
   }
-  
+
   if (elements.emailBody && !elements.emailBody.value) {
     elements.emailBody.value = `Dear {Name},
 
@@ -181,7 +181,7 @@ async function checkServerStatus() {
   try {
     const response = await fetch('/api/config-status');
     const data = await response.json();
-    
+
     if (data.success) {
       if (data.configured) {
         elements.envStatus.className = 'env-status-badge connected';
@@ -211,7 +211,7 @@ function setupEventListeners() {
   elements.btnGuide.addEventListener('click', () => elements.guideModal.classList.remove('hidden'));
   elements.btnCloseModal.addEventListener('click', () => elements.guideModal.classList.add('hidden'));
   elements.btnCloseModalBottom.addEventListener('click', () => elements.guideModal.classList.add('hidden'));
-  
+
   // Close modal on background click
   elements.guideModal.addEventListener('click', (e) => {
     if (e.target === elements.guideModal) elements.guideModal.classList.add('hidden');
@@ -224,7 +224,7 @@ function setupEventListeners() {
         elements.btnCopySchema.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
         elements.btnCopySchema.style.borderColor = '#10b981';
         elements.btnCopySchema.style.color = '#34d399';
-        
+
         setTimeout(() => {
           elements.btnCopySchema.innerHTML = '<i class="fa-regular fa-copy"></i> Copy Schema';
           elements.btnCopySchema.style.borderColor = '';
@@ -245,7 +245,7 @@ function setupEventListeners() {
     e.stopPropagation();
     clearExcelData();
   });
-  
+
   elements.btnClearAttachment.addEventListener('click', (e) => {
     e.stopPropagation();
     clearAttachmentData();
@@ -302,7 +302,7 @@ async function logoutUser() {
  */
 function setupDropzone(dropzone, inputEl, fileHandler) {
   dropzone.addEventListener('click', () => inputEl.click());
-  
+
   dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropzone.classList.add('dragover');
@@ -315,7 +315,7 @@ function setupDropzone(dropzone, inputEl, fileHandler) {
   dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropzone.classList.remove('dragover');
-    
+
     if (e.dataTransfer.files.length > 0) {
       inputEl.files = e.dataTransfer.files;
       fileHandler(e.dataTransfer.files[0]);
@@ -337,23 +337,23 @@ function setupDropzone(dropzone, inputEl, fileHandler) {
  */
 function handleExcelFile(file) {
   const reader = new FileReader();
-  
+
   reader.onload = (e) => {
     try {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
-      
+
       // Parse Sheet rows as Array of Arrays to inspect headers strictly
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      
+
       if (rows.length < 2) {
         throw new Error('Spreadsheet has insufficient rows. Must contain at least a header row and one contact row.');
       }
 
       const headers = rows[0].map(h => String(h || '').trim().toLowerCase());
-      
+
       // Target column indices
       const companyIndex = headers.indexOf('company name');
       const nameIndex = headers.indexOf('name');
@@ -396,9 +396,9 @@ function handleExcelFile(file) {
       elements.excelFileInfo.querySelector('.file-name').textContent = file.name;
       elements.excelFileInfo.querySelector('.file-details').textContent = `${contactsData.length} contacts parsed successfully`;
       elements.dropzoneExcel.querySelector('.dropzone-content').classList.add('hidden');
-      
+
       logToTerminal(`[SYSTEM] Excel sheet parsed: ${file.name} (${contactsData.length} contacts found)`, 'success');
-      
+
       // Refresh Contacts Grid View
       renderContactsTable();
       validateFormInputs();
@@ -422,12 +422,12 @@ function clearExcelData() {
   elements.inputExcel.value = '';
   elements.excelFileInfo.classList.add('hidden');
   elements.dropzoneExcel.querySelector('.dropzone-content').classList.remove('hidden');
-  
+
   elements.contactsCountBadge.classList.add('hidden');
   elements.tablePlaceholder.classList.remove('hidden');
   elements.tableWrapper.classList.add('hidden');
   elements.contactsTableBody.innerHTML = '';
-  
+
   logToTerminal('[SYSTEM] Contact list cleared.', 'system');
   validateFormInputs();
   updateLivePreview();
@@ -479,7 +479,7 @@ async function handleAttachmentFile(file) {
       elements.attachmentFileInfo.querySelector('.file-name').textContent = result.originalName;
       elements.attachmentFileInfo.querySelector('.file-details').textContent = formatBytes(result.size);
       elements.dropzoneAttachment.querySelector('.dropzone-content').classList.add('hidden');
-      
+
       logToTerminal(`[SYSTEM] Attachment uploaded successfully: ${result.originalName}`, 'success');
     } else {
       throw new Error(result.error || 'Server rejected file upload');
@@ -497,11 +497,11 @@ async function handleAttachmentFile(file) {
  */
 async function clearAttachmentData() {
   const fileToDelete = uploadedAttachment ? uploadedAttachment.filename : null;
-  
+
   uploadedAttachment = null;
   elements.inputAttachment.value = '';
   elements.attachmentFileInfo.classList.add('hidden');
-  
+
   // Revert dropzone content structure
   elements.dropzoneAttachment.querySelector('.dropzone-content').innerHTML = `
     <i class="fa-solid fa-paperclip dropzone-icon"></i>
@@ -537,9 +537,9 @@ function insertTextAtCursor(textarea, text) {
   const start = textarea.selectionStart;
   const end = textarea.selectionEnd;
   const originalVal = textarea.value;
-  
+
   textarea.value = originalVal.substring(0, start) + text + originalVal.substring(end);
-  
+
   // Put caret position right after inserted element
   textarea.selectionStart = textarea.selectionEnd = start + text.length;
   textarea.focus();
@@ -560,8 +560,8 @@ function updateLivePreview() {
     email: 'johndoe@acme.com'
   };
 
-  elements.previewRowIndex.textContent = hasContacts 
-    ? `Showing row: #${context.rowIndex} (${context.name})` 
+  elements.previewRowIndex.textContent = hasContacts
+    ? `Showing row: #${context.rowIndex} (${context.name})`
     : 'Showing default preview';
 
   // Apply bracket replacements
@@ -569,18 +569,19 @@ function updateLivePreview() {
   const interpolatedBody = interpolate(bodyTemplate, context);
 
   elements.previewSubjectText.textContent = interpolatedSubject || '(Empty Subject)';
-  
+
   if (elements.chkUseTemplate && elements.chkUseTemplate.checked && interpolatedBody) {
     const htmlContent = convertMarkdownToHtml(interpolatedBody);
 
     elements.previewBodyText.innerHTML = `
-<div style="background-color: #ffffff; padding: 25px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); font-family: Arial, Helvetica, sans-serif; font-size: 15px; color: #000000; margin-top: 5px; text-align: left; line-height: 1.6;">
+<div style="background-color:#ffffff;padding:25px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#000000;margin-top:5px;text-align:left;line-height:1.6;">
+  <style>.sig-line{line-height:1.15!important;margin:0!important;padding:0!important;font-size:11px!important;color:#0b3a60!important;font-family:Arial,Helvetica,sans-serif!important;}</style>
   ${htmlContent}
 </div>`;
   } else {
     elements.previewBodyText.innerHTML = (interpolatedBody || '(Empty Body)').replace(/\n/g, '<br>');
   }
-  
+
   validateFormInputs();
 }
 
@@ -601,13 +602,13 @@ function convertMarkdownToHtml(text) {
 
   // 3. Paragraph splitting by double line break
   const blocks = html.split(/\n\n+/);
-  
+
   const parsedBlocks = blocks.map(block => {
     block = block.trim();
     if (!block) return '';
 
     const lines = block.split('\n');
-    
+
     // Check if the block consists of bullet list items (lines starting with •, *, -, or 🏆)
     const isBulletList = lines.every(line => {
       const trimmed = line.trim();
@@ -618,7 +619,7 @@ function convertMarkdownToHtml(text) {
       const listItems = lines.map(line => {
         let content = line.trim();
         let bulletStyle = '';
-        
+
         if (content.startsWith('•')) {
           content = content.substring(1).trim();
           bulletStyle = 'list-style-type: disc; margin-left: 20px;';
@@ -634,7 +635,7 @@ function convertMarkdownToHtml(text) {
 
         return `<li style="margin-bottom: 6px; line-height: 1.6; color: #000000; font-size: 15px; ${bulletStyle}">${content}</li>`;
       }).join('');
-      
+
       return `<ul style="padding-left: 0; margin: 0 0 16px 0; list-style-position: outside;">${listItems}</ul>`;
     }
 
@@ -694,23 +695,21 @@ function convertMarkdownToHtml(text) {
       });
 
       return `
-<p style="margin: 0 0 16px 0; line-height: 1.6; color: #000000; font-size: 15px;">Regards,</p>
-<table border="0" cellpadding="0" cellspacing="0" style="margin-top: 15px; margin-bottom: 15px; font-family: Arial, sans-serif; text-align: left; line-height: 1.4;">
+<p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000000;line-height:1.4;">Regards,</p>
+<table border="0" cellpadding="0" cellspacing="0" style="margin-top:8px;font-family:Arial,Helvetica,sans-serif;border-collapse:collapse;">
   <tr>
-    <td valign="middle" style="padding-right: 15px; border-right: 2px solid #b50938;">
-      <img src="/amrita-logo.png" alt="Amrita Vishwa Vidyapeetham" width="180" style="display: block; border: 0; outline: none; text-decoration: none;">
+    <td valign="middle" style="padding-right:18px;border-right:4px solid #b50938;">
+      <img src="/amrita-logo.png" alt="Amrita Vishwa Vidyapeetham" width="200" style="display:block;border:0;outline:none;text-decoration:none;">
     </td>
-    <td valign="middle" style="padding-left: 15px; text-align: left; font-family: Arial, sans-serif; color: #0b3a60; line-height: 1.25;">
-      <div style="font-size: 14px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 2px;">${name}</div>
-      <div style="font-size: 11px; font-weight: bold; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 2px;">${title}</div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 1px;">${line1}</div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 3px;">${line2}</div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25; margin-bottom: 1px;">
-        <span style="color: #555555;">E-mail:</span> <a href="mailto:${email}" style="color: #0b3a60; text-decoration: none; font-weight: bold;">${email}</a>
-      </div>
-      <div style="font-size: 11px; color: #0b3a60; font-family: Arial, sans-serif; line-height: 1.25;">
-        <span style="color: #555555;">Mob:</span> <a href="tel:${phone.replace(/\s+/g, '')}" style="color: #0b3a60; text-decoration: none; font-weight: bold;">${phone}</a>
-      </div>
+    <td valign="middle" style="padding-left:18px;line-height:1.0;">
+      <table border="0" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:0 0 8px 0;font-family:Georgia,'Times New Roman',serif;font-size:23px;font-weight:bold;color:#0b3a60;line-height:1.0;white-space:nowrap;">${name}</td></tr>
+        <tr><td style="padding:0 0 1px 0;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#0b3a60;line-height:1.3;white-space:nowrap;">${title}</td></tr>
+        <tr><td style="padding:0 0 1px 0;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#0b3a60;line-height:1.3;white-space:nowrap;">${line1}</td></tr>
+        <tr><td style="padding:0 0 1px 0;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#0b3a60;line-height:1.3;white-space:nowrap;">${line2 ? line2 + ', Andhra Pradesh' : 'Amaravati Campus, Andhra Pradesh'}</td></tr>
+        <tr><td style="padding:0 0 1px 0;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#0b3a60;line-height:1.3;white-space:nowrap;">E-mail: <a href="mailto:${email}" style="color:#0b3a60;text-decoration:none;">${email}</a></td></tr>
+        <tr><td style="padding:0;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#0b3a60;line-height:1.3;white-space:nowrap;">Mob: <a href="tel:${phone.replace(/\s+/g, '')}" style="color:#0b3a60;text-decoration:none;">${phone}</a></td></tr>
+      </table>
     </td>
   </tr>
 </table>`;
@@ -756,7 +755,7 @@ function validateFormInputs() {
   const hasContacts = contactsData.length > 0;
 
   const isFormValid = hasSubject && hasBody && hasContacts;
-  
+
   if (campaignState === 'idle') {
     elements.btnStartCampaign.disabled = !isFormValid;
   }
@@ -779,7 +778,7 @@ function renderContactsTable() {
   elements.tableWrapper.classList.remove('hidden');
 
   elements.contactsTableBody.innerHTML = '';
-  
+
   contactsData.forEach((contact, idx) => {
     const tr = document.createElement('tr');
     tr.id = `row-${idx}`;
@@ -810,7 +809,7 @@ function updateTableRow(idx) {
     badgeCell.className = `status-badge ${contact.status.toLowerCase()}`;
     badgeCell.textContent = contact.status;
   }
-  
+
   if (logsCell) {
     logsCell.textContent = contact.logs;
     logsCell.title = contact.logs;
@@ -829,7 +828,7 @@ async function startCampaign() {
     campaignState = 'running';
     currentSendIndex = 0;
     stopRequested = false;
-    
+
     // Clear previous execution state from contacts data array
     contactsData.forEach(c => {
       c.status = 'Pending';
@@ -935,7 +934,7 @@ async function runCampaignQueue() {
     stats.remaining--;
     updateTableRow(index);
     updateMetricsDashboard();
-    
+
     currentSendIndex++;
 
     // Add artificial delay (800ms) to prevent server rate throttling
@@ -1011,7 +1010,7 @@ function setCampaignButtonStates() {
     elements.btnPauseCampaign.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
     elements.btnCancelCampaign.classList.remove('hidden');
     elements.btnDownloadReport.disabled = true;
-    
+
     // Lock forms
     elements.emailSubject.disabled = true;
     elements.emailBody.disabled = true;
@@ -1020,19 +1019,19 @@ function setCampaignButtonStates() {
     elements.dropzoneExcel.style.pointerEvents = 'none';
     elements.dropzoneAttachment.style.pointerEvents = 'none';
     elements.tagButtons.forEach(b => b.disabled = true);
-    
+
   } else if (campaignState === 'paused') {
     elements.btnPauseCampaign.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
     elements.btnStartCampaign.disabled = true;
     elements.btnDownloadReport.disabled = false;
-    
+
   } else if (campaignState === 'completed' || campaignState === 'idle') {
     elements.btnStartCampaign.disabled = false;
     elements.btnStartCampaign.innerHTML = '<i class="fa-solid fa-rocket"></i> Relaunch Campaign';
     elements.btnPauseCampaign.classList.add('hidden');
     elements.btnCancelCampaign.classList.add('hidden');
     elements.btnDownloadReport.disabled = false;
-    
+
     // Unlock forms
     elements.emailSubject.disabled = false;
     elements.emailBody.disabled = false;
@@ -1072,7 +1071,7 @@ function updateMetricsDashboard() {
  */
 function downloadExcelReport() {
   if (contactsData.length === 0) return;
-  
+
   logToTerminal('[SYSTEM] Compiling campaign report worksheet...', 'system');
 
   try {
@@ -1091,7 +1090,7 @@ function downloadExcelReport() {
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-    
+
     // Set custom column widths to make sheet look very clean & professional
     worksheet['!cols'] = [
       { wch: 25 }, // Company Name
@@ -1106,7 +1105,7 @@ function downloadExcelReport() {
 
     // Trigger browser file download
     XLSX.writeFile(workbook, `Mail_Merge_Report_${Date.now()}.xlsx`);
-    
+
     logToTerminal('[SYSTEM] Excel status report downloaded successfully.', 'success');
   } catch (err) {
     console.error('Download report error:', err);
@@ -1123,10 +1122,10 @@ function downloadExcelReport() {
 function logToTerminal(message, type = 'system') {
   const line = document.createElement('div');
   line.className = `log-line ${type}`;
-  
+
   const timestamp = new Date().toLocaleTimeString();
   line.textContent = `[${timestamp}] ${message}`;
-  
+
   elements.terminalBody.appendChild(line);
   elements.terminalBody.scrollTop = elements.terminalBody.scrollHeight;
 }
@@ -1139,7 +1138,7 @@ function scrollTableToRow(index) {
   if (row) {
     row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     row.style.background = 'rgba(99, 102, 241, 0.1)';
-    
+
     // Remove highlight background after a few seconds
     setTimeout(() => {
       row.style.background = '';

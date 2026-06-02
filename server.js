@@ -243,10 +243,8 @@ app.post('/api/send-email', requireAuth, async (req, res) => {
       }
     }
 
-    // Convert relative logo paths to absolute public URLs for email clients
-    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const host = req.headers.host;
-    const absoluteLogoUrl = `${protocol}://${host}/amrita-logo.png`;
+    // Convert relative logo paths to public GitHub Raw URLs so they load reliably in email clients (bypassing localhost and proxy blocks)
+    const absoluteLogoUrl = 'https://raw.githubusercontent.com/KolliparaVMKMithra/mail-merge/main/public/amrita-logo.png';
     const processedBody = body.replace(/\/amrita-logo\.png/g, absoluteLogoUrl).replace(/amrita-logo\.png/g, absoluteLogoUrl);
 
     // Construct the payload for Power Automate HTTP Trigger
