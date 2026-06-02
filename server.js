@@ -243,8 +243,13 @@ app.post('/api/send-email', requireAuth, async (req, res) => {
       }
     }
 
-    // Convert relative logo paths to public GitHub Raw URLs so they load reliably in email clients (bypassing localhost and proxy blocks)
-    const absoluteLogoUrl = 'https://raw.githubusercontent.com/KolliparaVMKMithra/mail-merge/main/public/amrita-logo.png';
+    // Determine the public URL of the logo.
+    // If running on Render, it uses the public Render URL.
+    // If running locally on localhost, it falls back to the public Render URL so that external email clients can fetch it.
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const renderUrl = process.env.RENDER_EXTERNAL_URL || 'https://mail-merge-jgn2.onrender.com';
+    const publicHost = req.headers.host.includes('localhost') ? renderUrl : `${protocol}://${req.headers.host}`;
+    const absoluteLogoUrl = `${publicHost}/amrita-logo.png`;
     const processedBody = body.replace(/\/amrita-logo\.png/g, absoluteLogoUrl).replace(/amrita-logo\.png/g, absoluteLogoUrl);
 
     // Construct the payload for Power Automate HTTP Trigger
