@@ -103,6 +103,9 @@ const elements = {
   btnClearLogs: document.getElementById('btn-clear-logs'),
 
   contactsTableBody: document.getElementById('contacts-table-body'),
+  contactsCountBadge: document.getElementById('contacts-count-badge'),
+  tablePlaceholder: document.getElementById('table-placeholder'),
+  tableWrapper: document.getElementById('table-wrapper'),
 
   // Navigation & Views
   tabMailMerge: document.getElementById('tab-mail-merge'),
