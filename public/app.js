@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pre-populate with Amrita Recruitment Template matching user requirements
   if (elements.emailSubject && !elements.emailSubject.value) {
-    elements.emailSubject.value = "Invitation for Campus Recruitment Drive - Amrita Vishwa Vidyapeetham";
+    elements.emailSubject.value = "Amrita University - Invite for Campus Hiring/Internship/Academia Industry Partnership";
   }
 
   if (elements.emailBody && !elements.emailBody.value) {
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 Greetings from Amrita University!
 
-We are delighted to invite **{Company Name}** to participate in the Campus Recruitment drive for 2026 and 2027 batch at Amrita Vishwa Vidyapeetham.
+We are delighted to invite **{Company Name}** to participate in the Campus Recruitment drive for 2027 and 2028 batch at Amrita Vishwa Vidyapeetham.
 
 As a multi-campus private university with 16+ schools, including Engineering, Medicine, arts, science, business, etc... and we are proud of our reputation for developing talented leaders.
 
@@ -1245,14 +1245,14 @@ async function fetchJobs() {
   try {
     const q = elements.jobSearchInput ? elements.jobSearchInput.value.trim() : '';
     const location = elements.jobLocationInput ? elements.jobLocationInput.value.trim() : 'Hyderabad';
-    
+
     const url = `/api/linkedin-jobs?q=${encodeURIComponent(q)}&location=${encodeURIComponent(location)}`;
     const response = await fetch(url);
     const data = await response.json();
-    
+
     if (data.success) {
       jobsData = data.jobs || [];
-      
+
       // Show/hide API warning based on real-time data status
       if (elements.jobsApiWarning) {
         if (data.hasRealTimeData) {
@@ -1261,7 +1261,7 @@ async function fetchJobs() {
           elements.jobsApiWarning.classList.remove('hidden');
         }
       }
-      
+
       renderJobsTable();
     } else {
       console.error('Error fetching jobs:', data.error);
@@ -1283,9 +1283,9 @@ function renderJobsTable() {
 
   // In-memory filter on currently loaded jobsData for instant keypress filtering
   const filteredJobs = jobsData.filter(job => {
-    return job.companyName.toLowerCase().includes(searchQuery) || 
-           job.title.toLowerCase().includes(searchQuery) ||
-           job.location.toLowerCase().includes(searchQuery);
+    return job.companyName.toLowerCase().includes(searchQuery) ||
+      job.title.toLowerCase().includes(searchQuery) ||
+      job.location.toLowerCase().includes(searchQuery);
   });
 
   // Update metrics row
