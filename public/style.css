@@ -1400,6 +1400,13 @@ body {
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
+.metric-icon-circle.red {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+
 /* Filter/Search Bar Controls */
 .search-input-group {
   position: relative;

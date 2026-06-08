@@ -38,7 +38,11 @@
           <button id="tab-linkedin-jobs" class="nav-tab">
             <i class="fa-brands fa-linkedin"></i> LinkedIn Jobs
           </button>
+          <button id="tab-bounce-checker" class="nav-tab">
+            <i class="fa-solid fa-envelope-circle-check"></i> Bounce Checker
+          </button>
         </div>
+
         <button id="btn-guide" class="btn btn-secondary">
           <i class="fa-solid fa-circle-info"></i> Power Automate Setup Guide
         </button>
@@ -405,6 +409,109 @@
         </div>
       </section>
     </div> <!-- /#view-linkedin-jobs -->
+
+    <!-- Bounce Checker View Pane -->
+    <div id="view-bounce-checker" class="view-pane hidden">
+      <!-- Key Missing Warning Banner for Bounce Checker -->
+      <div id="bounce-api-warning" class="card glass-card mt-4 hidden" style="border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.03);">
+        <div class="card-body" style="padding: 16px 24px; display: flex; align-items: center; gap: 16px;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; color: var(--warning-color);"></i>
+          <div style="flex-grow: 1;">
+            <h4 style="color: #fff; font-weight: 600; margin-bottom: 2px;">Mock Mode (Bounce Webhook URL Missing)</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
+              You are currently viewing offline mock data. To connect to your real inbox, follow the <strong>Power Automate Setup Guide</strong> to create a bounce checker flow and set <code>POWER_AUTOMATE_BOUNCE_URL="your_url"</code> in your <code>.env</code> file.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Summary Row -->
+      <div class="metrics-summary-row mt-4">
+        <div class="metric-card glass-metric flex-row align-center justify-between">
+          <div class="metric-content">
+            <span id="metric-total-bounces" class="metric-number">0</span>
+            <span class="metric-label">Bounced Emails Found</span>
+          </div>
+          <div class="metric-icon-circle red"><i class="fa-solid fa-envelope-circle-check"></i></div>
+        </div>
+        <div class="metric-card glass-metric flex-row align-center justify-between">
+          <div class="metric-content">
+            <span id="metric-bounce-status" class="metric-number" style="font-size: 1.6rem; font-weight: 700; padding-top: 6px;">Idle</span>
+            <span class="metric-label">Scanner Status</span>
+          </div>
+          <div class="metric-icon-circle blue"><i class="fa-solid fa-satellite-dish"></i></div>
+        </div>
+      </div>
+
+      <!-- Filter and Search Bar -->
+      <div class="filter-bar card glass-card mt-6">
+        <div class="card-body flex-row justify-between align-center gap-4 flex-wrap" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px;">
+          <div class="search-input-group flex-grow">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="bounce-search-input" class="form-control" placeholder="Search by recipient email or subject...">
+          </div>
+          <div class="filter-controls flex-row gap-3" style="display: flex; align-items: center; gap: 12px; flex-grow: 0;">
+            <button id="btn-refresh-bounces" class="btn btn-primary" disabled style="white-space: nowrap;">
+              <i class="fa-solid fa-rotate"></i> Fetch & Parse Bounce Emails
+            </button>
+            <button id="btn-download-bounce-excel" class="btn btn-secondary" disabled style="white-space: nowrap;">
+              <i class="fa-solid fa-file-excel"></i> Download Bounce Report
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scanning Progress Bar (Hidden initially) -->
+      <div id="bounce-scan-progress-container" class="card glass-card mt-6 hidden" style="border-color: rgba(99, 102, 241, 0.2); background: rgba(99, 102, 241, 0.02);">
+        <div class="card-body" style="padding: 20px 24px;">
+          <div class="flex-row justify-between align-center" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">
+            <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-spinner fa-spin text-indigo" style="font-size: 1.1rem; color: #818cf8;"></i> 
+              <span>Scanning Outlook Inbox and filtering bounce notifications...</span>
+            </span>
+            <span id="bounce-scan-percentage" style="color: #818cf8; font-family: var(--font-mono); font-size: 1rem;">0%</span>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); height: 8px; border-radius: 50px; overflow: hidden; border: 1px solid rgba(255,255,255,0.02);">
+            <div id="bounce-scan-progress-bar" style="background: var(--primary-gradient); height: 100%; width: 0%; border-radius: 50px; transition: width 0.3s ease; box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bounces Pipeline Card -->
+
+      <section class="card glass-card mt-6">
+        <div class="card-header flex-row justify-between align-center">
+          <div class="flex-row align-center">
+            <i class="fa-solid fa-triangle-exclamation card-icon"></i>
+            <h2>Bounced & Failed Delivery List</h2>
+          </div>
+          <span class="badge" id="bounces-count-badge">0 Bounces Found</span>
+        </div>
+        <div class="card-body p-0">
+          <div id="bounces-table-placeholder" class="table-placeholder" style="text-align: center; padding: 40px 20px;">
+            <i class="fa-solid fa-envelope-open-text placeholder-icon" style="font-size: 2.5rem; color: var(--text-dim); margin-bottom: 12px; display: block;"></i>
+            <h3>No Bounce Data Loaded</h3>
+            <p style="color: var(--text-dim); margin-top: 4px;">Click the button above to fetch bounced and failed email delivery reports from your inbox.</p>
+          </div>
+          <div id="bounces-table-wrapper" class="table-wrapper hidden">
+            <table class="contacts-table bounces-table">
+              <thead>
+                <tr>
+                  <th width="180px">Received Date</th>
+                  <th>Failed Recipient Email</th>
+                  <th>Original Email Subject</th>
+                  <th>Diagnostics / Failure Reason</th>
+                </tr>
+              </thead>
+              <tbody id="bounces-table-body">
+                <!-- Dynamically populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div> <!-- /#view-bounce-checker -->
+
   </div>
 
   <!-- POWER AUTOMATE SETUP GUIDE MODAL -->
@@ -419,34 +526,46 @@
       </div>
       <div class="modal-body">
         
-        <p class="modal-intro">
-          This dashboard triggers emails by sending HTTP POST requests to an instant cloud flow inside Microsoft Power Automate. 
-          Follow these simple steps to configure your webhook and connect it to your Outlook email account.
-        </p>
+        <!-- Tab navigation inside Guide Modal -->
+        <div class="nav-tabs" style="margin-bottom: 24px; display: inline-flex; border-radius: 10px; padding: 2px;">
+          <button id="tab-guide-mail-merge" class="nav-tab active" style="font-size: 0.8rem; padding: 6px 12px; border-radius: 6px;">
+            <i class="fa-solid fa-paper-plane"></i> Mail Merge Setup
+          </button>
+          <button id="tab-guide-bounce" class="nav-tab" style="font-size: 0.8rem; padding: 6px 12px; border-radius: 6px;">
+            <i class="fa-solid fa-envelope-circle-check"></i> Bounce Checker Setup
+          </button>
+        </div>
 
-        <div class="step-guide">
-          <!-- Step 1 -->
-          <div class="step-card">
-            <div class="step-num">1</div>
-            <div class="step-content">
-              <h3>Create Instant Cloud Flow</h3>
-              <p>Sign in to <a href="https://make.powerautomate.com" target="_blank" class="link-glow">Power Automate</a>, navigate to <strong>"Create"</strong>, and choose <strong>"Instant cloud flow"</strong>. Choose a name and select <strong>"When an HTTP request is received"</strong> as the trigger, then click Create.</p>
+        <!-- Mail Merge Guide Panel -->
+        <div id="guide-mail-merge-content" class="guide-content-pane">
+          <p class="modal-intro">
+            This dashboard triggers emails by sending HTTP POST requests to an instant cloud flow inside Microsoft Power Automate. 
+            Follow these simple steps to configure your webhook and connect it to your Outlook email account.
+          </p>
+
+          <div class="step-guide">
+            <!-- Step 1 -->
+            <div class="step-card">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h3>Create Instant Cloud Flow</h3>
+                <p>Sign in to <a href="https://make.powerautomate.com" target="_blank" class="link-glow">Power Automate</a>, navigate to <strong>"Create"</strong>, and choose <strong>"Instant cloud flow"</strong>. Choose a name and select <strong>"When an HTTP request is received"</strong> as the trigger, then click Create.</p>
+              </div>
             </div>
-          </div>
 
-          <!-- Step 2 -->
-          <div class="step-card">
-            <div class="step-num">2</div>
-            <div class="step-content">
-              <h3>Paste Trigger JSON Schema</h3>
-              <p>In the trigger configuration, click <strong>"Use sample payload to generate schema"</strong> and paste the JSON schema below. Power Automate will automatically configure the data parameters.</p>
-              
-              <div class="schema-code-block">
-                <div class="code-header">
-                  <span>JSON Payload Schema</span>
-                  <button id="btn-copy-schema" class="btn-copy"><i class="fa-regular fa-copy"></i> Copy Schema</button>
-                </div>
-                <pre><code id="schema-code">{
+            <!-- Step 2 -->
+            <div class="step-card">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h3>Paste Trigger JSON Schema</h3>
+                <p>In the trigger configuration, click <strong>"Use sample payload to generate schema"</strong> and paste the JSON schema below. Power Automate will automatically configure the data parameters.</p>
+                
+                <div class="schema-code-block">
+                  <div class="code-header">
+                    <span>JSON Payload Schema</span>
+                    <button id="btn-copy-schema" class="btn-copy"><i class="fa-regular fa-copy"></i> Copy Schema</button>
+                  </div>
+                  <pre><code id="schema-code">{
   "type": "object",
   "properties": {
     "email": { "type": "string" },
@@ -463,55 +582,117 @@
     }
   }
 }</code></pre>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step-card">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h3>Add Email Sending Action</h3>
+                <p>Click <strong>"New step"</strong> and add the <strong>"Send an email (V2)"</strong> action (from Office 365 Outlook or Outlook.com).</p>
+                <ul class="step-bullets">
+                  <li><strong>To</strong>: Select <span class="badge-dynamic">email</span> from the dynamic content trigger.</li>
+                  <li><strong>Subject</strong>: Select <span class="badge-dynamic">subject</span> from the dynamic content trigger.</li>
+                  <li><strong>Body</strong>: Select <span class="badge-dynamic">body</span> from the dynamic content trigger (set format to HTML if you plan to send HTML-formatted emails).</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="step-card">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <h3>Configure Dynamic Attachment</h3>
+                <p>Click <strong>"Show advanced options"</strong> at the bottom of the Email Action card.</p>
+                <ul class="step-bullets">
+                  <li>Under <strong>Attachments - 1 Name</strong>: Click and select <span class="badge-dynamic">attachment / name</span> from the dynamic content trigger.</li>
+                  <li>Under <strong>Attachments - 1 Content</strong>: Go to the "Expression" panel in the dynamic window and enter the following formula to translate our Base64 string back into binary:
+                    <div class="formula-block">
+                      <code>base64ToBinary(triggerBody()?['attachment']?['contentBytes'])</code>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="step-card">
+              <div class="step-num">5</div>
+              <div class="step-content">
+                <h3>Save Flow & Copy URL</h3>
+                <p>Click <strong>"Save"</strong>. Power Automate will now generate a unique HTTP POST URL inside the trigger. Copy this URL, open the `.env` file in your workspace, and paste it into the <code>POWER_AUTOMATE_URL</code> variable.</p>
+                <div class="formula-block text-center">
+                  <code>POWER_AUTOMATE_URL="https://prod-..."</code>
+                </div>
+                <p class="mt-2 text-sm text-yellow-dim"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Important:</strong> Under the HTTP trigger's advanced settings, ensure <strong>"Who can trigger the flow"</strong> is set to <strong>"Anyone"</strong> (not "Any user in my tenant") to allow direct trigger access from FlowMail.</p>
+                <p class="mt-2 text-sm text-yellow-dim"><i class="fa-solid fa-triangle-exclamation"></i> Make sure to restart your Express backend after updating your `.env` file!</p>
               </div>
             </div>
           </div>
-
-          <!-- Step 3 -->
-          <div class="step-card">
-            <div class="step-num">3</div>
-            <div class="step-content">
-              <h3>Add Email Sending Action</h3>
-              <p>Click <strong>"New step"</strong> and add the <strong>"Send an email (V2)"</strong> action (from Office 365 Outlook or Outlook.com).</p>
-              <ul class="step-bullets">
-                <li><strong>To</strong>: Select <span class="badge-dynamic">email</span> from the dynamic content trigger.</li>
-                <li><strong>Subject</strong>: Select <span class="badge-dynamic">subject</span> from the dynamic content trigger.</li>
-                <li><strong>Body</strong>: Select <span class="badge-dynamic">body</span> from the dynamic content trigger (set format to HTML if you plan to send HTML-formatted emails).</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Step 4 -->
-          <div class="step-card">
-            <div class="step-num">4</div>
-            <div class="step-content">
-              <h3>Configure Dynamic Attachment</h3>
-              <p>Click <strong>"Show advanced options"</strong> at the bottom of the Email Action card.</p>
-              <ul class="step-bullets">
-                <li>Under <strong>Attachments - 1 Name</strong>: Click and select <span class="badge-dynamic">attachment / name</span> from the dynamic content trigger.</li>
-                <li>Under <strong>Attachments - 1 Content</strong>: Go to the "Expression" panel in the dynamic window and enter the following formula to translate our Base64 string back into binary:
-                  <div class="formula-block">
-                    <code>base64ToBinary(triggerBody()?['attachment']?['contentBytes'])</code>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Step 5 -->
-          <div class="step-card">
-            <div class="step-num">5</div>
-            <div class="step-content">
-              <h3>Save Flow & Copy URL</h3>
-              <p>Click <strong>"Save"</strong>. Power Automate will now generate a unique HTTP POST URL inside the trigger. Copy this URL, open the `.env` file in your workspace, and paste it into the <code>POWER_AUTOMATE_URL</code> variable.</p>
-              <div class="formula-block text-center">
-                <code>POWER_AUTOMATE_URL="https://prod-..."</code>
-              </div>
-              <p class="mt-2 text-sm text-yellow-dim"><i class="fa-solid fa-triangle-exclamation"></i> Make sure to restart your Express backend after updating your `.env` file!</p>
-            </div>
-          </div>
-
         </div>
+
+        <!-- Bounce Checker Guide Panel -->
+        <div id="guide-bounce-content" class="guide-content-pane hidden">
+          <p class="modal-intro">
+            To fetch bounced or failed email delivery reports from your Outlook inbox, you can configure another instant cloud flow that queries your inbox and returns the list of messages.
+          </p>
+
+          <div class="step-guide">
+            <!-- Step 1 -->
+            <div class="step-card">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h3>Create Bounce Fetcher Flow</h3>
+                <p>Sign in to <a href="https://make.powerautomate.com" target="_blank" class="link-glow">Power Automate</a>, select <strong>"Create"</strong>, and choose <strong>"Instant cloud flow"</strong>. Set the name to <code>FlowMail Bounce Fetcher</code>, select <strong>"When an HTTP request is received"</strong> as the trigger, and click Create.</p>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="step-card">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h3>Add Outlook Get Emails Action</h3>
+                <p>Click <strong>"New step"</strong>, select the <strong>"Office 365 Outlook"</strong> (or Outlook.com) connector, and add the action <strong>"Get emails (V3)"</strong>. Set the options as follows:</p>
+                <ul class="step-bullets">
+                  <li><strong>Folder</strong>: <code>Inbox</code></li>
+                  <li><strong>Search Query</strong>: <code>subject:Undeliverable</code> (this filters the query to fetch only bounce notifications).</li>
+                  <li><strong>Top</strong>: <code>100</code> (maximum number of emails to scan).</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step-card">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h3>Add Response Action</h3>
+                <p>Click <strong>"New step"</strong> and select the <strong>"Response"</strong> action under Request. Set the properties to return the list of fetched emails back to FlowMail:</p>
+                <ul class="step-bullets">
+                  <li><strong>Status Code</strong>: <code>200</code></li>
+                  <li><strong>Headers</strong>: Add key <code>Content-Type</code> and value <code>application/json</code></li>
+                  <li><strong>Body</strong>: Click inside the field and select the dynamic content array parameter <span class="badge-dynamic">value</span> from the <strong>"Get emails (V3)"</strong> step output.</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="step-card">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <h3>Save Flow & Copy Bounce Webhook URL</h3>
+                <p>Click <strong>"Save"</strong>. Power Automate will now generate a unique HTTP POST URL inside the HTTP trigger card. Copy this URL, open the `.env` file in your workspace, and paste it into the <code>POWER_AUTOMATE_BOUNCE_URL</code> variable.</p>
+                <div class="formula-block text-center">
+                  <code>POWER_AUTOMATE_BOUNCE_URL="https://prod-..."</code>
+                </div>
+                <p class="mt-2 text-sm text-yellow-dim"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Important:</strong> Under the HTTP trigger's advanced settings, ensure <strong>"Who can trigger the flow"</strong> is set to <strong>"Anyone"</strong>. If set to "Any user in my tenant", Microsoft will reject calls with a 401 Authorization error.</p>
+                <p class="mt-2 text-sm text-yellow-dim"><i class="fa-solid fa-triangle-exclamation"></i> Make sure to restart your Express backend after updating your `.env` file!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
 
       </div>
       <div class="modal-footer">

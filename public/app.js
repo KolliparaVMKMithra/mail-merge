@@ -30,6 +30,7 @@ let uploadedAttachment = null; // { filename, originalName, size }
 let campaignState = 'idle'; // idle | running | paused | completed
 let currentSendIndex = 0;
 let stopRequested = false;
+let campaignStartTime = null;
 
 // Statistics
 let stats = {
@@ -110,8 +111,10 @@ const elements = {
   // Navigation & Views
   tabMailMerge: document.getElementById('tab-mail-merge'),
   tabLinkedinJobs: document.getElementById('tab-linkedin-jobs'),
+  tabBounceChecker: document.getElementById('tab-bounce-checker'),
   viewMailMerge: document.getElementById('view-mail-merge'),
   viewLinkedinJobs: document.getElementById('view-linkedin-jobs'),
+  viewBounceChecker: document.getElementById('view-bounce-checker'),
 
   // LinkedIn Jobs Elements
   metricTotalJobs: document.getElementById('metric-total-jobs'),
@@ -123,7 +126,29 @@ const elements = {
   jobsTablePlaceholder: document.getElementById('jobs-table-placeholder'),
   jobsTableWrapper: document.getElementById('jobs-table-wrapper'),
   jobsTableBody: document.getElementById('jobs-table-body'),
-  jobsApiWarning: document.getElementById('jobs-api-warning')
+  jobsApiWarning: document.getElementById('jobs-api-warning'),
+
+  // Bounce Checker Elements
+  bounceApiWarning: document.getElementById('bounce-api-warning'),
+  metricTotalBounces: document.getElementById('metric-total-bounces'),
+  metricBounceStatus: document.getElementById('metric-bounce-status'),
+  bounceSearchInput: document.getElementById('bounce-search-input'),
+  btnRefreshBounces: document.getElementById('btn-refresh-bounces'),
+  btnDownloadBounceExcel: document.getElementById('btn-download-bounce-excel'),
+  bouncesCountBadge: document.getElementById('bounces-count-badge'),
+  bouncesTablePlaceholder: document.getElementById('bounces-table-placeholder'),
+  bouncesTableWrapper: document.getElementById('bounces-table-wrapper'),
+  bouncesTableBody: document.getElementById('bounces-table-body'),
+  bounceScanProgressContainer: document.getElementById('bounce-scan-progress-container'),
+  bounceScanProgressBar: document.getElementById('bounce-scan-progress-bar'),
+  bounceScanPercentage: document.getElementById('bounce-scan-percentage'),
+
+
+  // Guide Modal Tabs
+  tabGuideMailMerge: document.getElementById('tab-guide-mail-merge'),
+  tabGuideBounce: document.getElementById('tab-guide-bounce'),
+  guideMailMergeContent: document.getElementById('guide-mail-merge-content'),
+  guideBounceContent: document.getElementById('guide-bounce-content')
 };
 
 // ==========================================================================
@@ -299,21 +324,60 @@ function setupEventListeners() {
   }
 
   // SPA Navigation View Toggling
-  if (elements.tabMailMerge && elements.tabLinkedinJobs) {
-    elements.tabMailMerge.addEventListener('click', () => {
-      elements.tabMailMerge.classList.add('active');
-      elements.tabLinkedinJobs.classList.remove('active');
-      elements.viewMailMerge.classList.remove('hidden');
-      elements.viewLinkedinJobs.classList.add('hidden');
+  const tabs = [elements.tabMailMerge, elements.tabLinkedinJobs, elements.tabBounceChecker];
+  const views = [elements.viewMailMerge, elements.viewLinkedinJobs, elements.viewBounceChecker];
+
+  function switchTab(activeTab, activeView) {
+    tabs.forEach(t => { if (t) t.classList.remove('active'); });
+    views.forEach(v => { if (v) v.classList.add('hidden'); });
+    if (activeTab) activeTab.classList.add('active');
+    if (activeView) activeView.classList.remove('hidden');
+  }
+
+  if (elements.tabMailMerge) {
+    elements.tabMailMerge.addEventListener('click', () => switchTab(elements.tabMailMerge, elements.viewMailMerge));
+  }
+  if (elements.tabLinkedinJobs) {
+    elements.tabLinkedinJobs.addEventListener('click', () => switchTab(elements.tabLinkedinJobs, elements.viewLinkedinJobs));
+  }
+  if (elements.tabBounceChecker) {
+    elements.tabBounceChecker.addEventListener('click', () => switchTab(elements.tabBounceChecker, elements.viewBounceChecker));
+  }
+
+  // Guide Modal Tabs Toggle
+  if (elements.tabGuideMailMerge && elements.tabGuideBounce) {
+    elements.tabGuideMailMerge.addEventListener('click', () => {
+      elements.tabGuideMailMerge.classList.add('active');
+      elements.tabGuideBounce.classList.remove('active');
+      elements.guideMailMergeContent.classList.remove('hidden');
+      elements.guideBounceContent.classList.add('hidden');
     });
 
-    elements.tabLinkedinJobs.addEventListener('click', () => {
-      elements.tabLinkedinJobs.classList.add('active');
-      elements.tabMailMerge.classList.remove('active');
-      elements.viewLinkedinJobs.classList.remove('hidden');
-      elements.viewMailMerge.classList.add('hidden');
+    elements.tabGuideBounce.addEventListener('click', () => {
+      elements.tabGuideBounce.classList.add('active');
+      elements.tabGuideMailMerge.classList.remove('active');
+      elements.guideBounceContent.classList.remove('hidden');
+      elements.guideMailMergeContent.classList.add('hidden');
     });
   }
+
+  // Bounce Checker Event Listeners
+  if (elements.btnRefreshBounces) {
+    elements.btnRefreshBounces.addEventListener('click', () => {
+      fetchBounces();
+    });
+  }
+  if (elements.btnDownloadBounceExcel) {
+    elements.btnDownloadBounceExcel.addEventListener('click', () => {
+      downloadBounceExcelReport();
+    });
+  }
+  if (elements.bounceSearchInput) {
+    elements.bounceSearchInput.addEventListener('input', () => {
+      renderBouncesTable();
+    });
+  }
+
 
   // LinkedIn Jobs Filters & Controls
   if (elements.jobSearchInput) {
@@ -341,6 +405,9 @@ function setupEventListeners() {
       });
     });
   }
+
+  // Initialize Bounce Checker UI state (starts disabled until campaign sent)
+  updateBounceCheckerUI();
 }
 
 /**
@@ -491,9 +558,11 @@ function clearExcelData() {
   elements.tableWrapper.classList.add('hidden');
   elements.contactsTableBody.innerHTML = '';
 
+  campaignStartTime = null;
   logToTerminal('[SYSTEM] Contact list cleared.', 'system');
   validateFormInputs();
   updateLivePreview();
+  updateBounceCheckerUI();
 }
 
 // ==========================================================================
@@ -891,6 +960,8 @@ async function startCampaign() {
     campaignState = 'running';
     currentSendIndex = 0;
     stopRequested = false;
+    campaignStartTime = new Date();
+    updateBounceCheckerUI();
 
     // Clear previous execution state from contacts data array
     contactsData.forEach(c => {
@@ -1469,3 +1540,384 @@ https://www.amrita.edu/`;
   // Log to terminal
   logToTerminal(`[SYSTEM] Auto-composed recruitment pitch targeting ${job.companyName} (${job.title} - ${job.location}).`, 'success');
 }
+
+// ==========================================================================
+// 11. BOUNCE CHECKER FLOW LOGIC
+// ==========================================================================
+
+let bouncesData = [];
+
+/**
+ * Fetch bounce messages from the backend
+ */
+async function fetchBounces() {
+  if (!elements.btnRefreshBounces) return;
+
+  elements.btnRefreshBounces.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scanning Inbox';
+  elements.btnRefreshBounces.disabled = true;
+  if (elements.metricBounceStatus) {
+    elements.metricBounceStatus.textContent = 'Scanning...';
+  }
+
+  // Phase 1: Reset progress and show "Connecting/Retrieving" state
+  if (elements.bounceScanProgressContainer) {
+    elements.bounceScanProgressContainer.classList.remove('hidden');
+    const textLabel = elements.bounceScanProgressContainer.querySelector('.card-body span span');
+    if (textLabel) {
+      textLabel.textContent = 'Connecting to Outlook Inbox and retrieving emails...';
+    }
+  }
+  if (elements.bounceScanProgressBar) {
+    elements.bounceScanProgressBar.style.width = '5%';
+  }
+  if (elements.bounceScanPercentage) {
+    elements.bounceScanPercentage.textContent = '5%';
+  }
+
+  // Animate connection progress slowly to 15% while request is in flight
+  let connectProgress = 5;
+  const connectInterval = setInterval(() => {
+    if (connectProgress < 15) {
+      connectProgress++;
+      if (elements.bounceScanProgressBar) {
+        elements.bounceScanProgressBar.style.width = `${connectProgress}%`;
+      }
+      if (elements.bounceScanPercentage) {
+        elements.bounceScanPercentage.textContent = `${connectProgress}%`;
+      }
+    }
+  }, 100);
+
+  let responseData = null;
+
+  try {
+    const response = await fetch('/api/check-bounces', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    responseData = await response.json();
+  } catch (error) {
+    console.error('Network error checking bounces:', error);
+    logToTerminal('[SYSTEM] Network error scanning inbox bounces. Ensure server is running.', 'error');
+    if (elements.metricBounceStatus) {
+      elements.metricBounceStatus.textContent = 'Failed';
+      elements.metricBounceStatus.style.color = 'var(--error-color)';
+    }
+  } finally {
+    clearInterval(connectInterval);
+  }
+
+  // Hydrate data and trigger Phase 2: Live Scanning Simulation
+  if (responseData && responseData.success) {
+    const totalEmails = responseData.totalScanned || 50;
+    let bouncesToRender = [];
+
+    if (responseData.configured) {
+      const allBounces = responseData.bounces || [];
+      
+      // Filter based on active contact list uploaded in the Mail Merge campaign and campaignStartTime
+      if (contactsData && contactsData.length > 0) {
+        const contactEmails = new Set(contactsData.map(c => c.email.toLowerCase().trim()));
+        bouncesToRender = allBounces.filter(b => {
+          const matchesEmail = contactEmails.has(b.bouncedEmail.toLowerCase().trim());
+          const matchesTime = campaignStartTime ? (new Date(b.receivedTime) >= campaignStartTime) : true;
+          return matchesEmail && matchesTime;
+        });
+      } else {
+        bouncesToRender = [];
+      }
+
+      if (elements.bounceApiWarning) {
+        elements.bounceApiWarning.classList.add('hidden');
+      }
+      if (elements.metricBounceStatus) {
+        elements.metricBounceStatus.textContent = 'Active';
+        elements.metricBounceStatus.style.color = 'var(--success-color)';
+      }
+      logToTerminal(`[SYSTEM] Connected to Outlook. Inbox contains ${totalEmails} recent messages.`, 'success');
+    } else {
+      // Mock Mode Bounces: dynamically target the loaded contacts and set receivedTime to after campaign starts
+      let mockEmails = ["john.doe.invalid@company.com", "recruiter_box@nonexistent-domain.org", "mailbox.full@university.edu"];
+      if (contactsData && contactsData.length > 0) {
+        mockEmails = contactsData.slice(0, 3).map(c => c.email);
+      }
+
+      const allMockBounces = mockEmails.map((email, idx) => {
+        const reasons = [
+          "550 5.1.1 User Unknown: The email account that you tried to reach does not exist.",
+          "Remote Server returned '550 5.4.11 Host Unknown: DNS lookup failed for target domain'",
+          "552 5.2.2 Mailbox Full: The recipient's mailbox is full and can't accept messages now."
+        ];
+        // Ensure mock received time is after campaign start time
+        const baseTime = campaignStartTime ? campaignStartTime.getTime() : Date.now();
+        const receivedTime = new Date(baseTime + (idx + 1) * 60 * 1000).toISOString();
+
+        return {
+          id: `mock-bounce-${idx + 1}`,
+          receivedTime: receivedTime,
+          bouncedEmail: email,
+          subject: `Undeliverable: Amrita University - Invite for Campus Hiring - ${email.split('@')[0]}`,
+          reason: reasons[idx % reasons.length]
+        };
+      });
+
+      // Filter mock bounces strictly if contact list is loaded
+      if (contactsData && contactsData.length > 0) {
+        const contactEmails = new Set(contactsData.map(c => c.email.toLowerCase().trim()));
+        bouncesToRender = allMockBounces.filter(b => {
+          const matchesEmail = contactEmails.has(b.bouncedEmail.toLowerCase().trim());
+          const matchesTime = campaignStartTime ? (new Date(b.receivedTime) >= campaignStartTime) : true;
+          return matchesEmail && matchesTime;
+        });
+      } else {
+        bouncesToRender = [];
+      }
+
+      if (elements.bounceApiWarning) {
+        elements.bounceApiWarning.classList.remove('hidden');
+      }
+      if (elements.metricBounceStatus) {
+        elements.metricBounceStatus.textContent = 'Mock Mode';
+        elements.metricBounceStatus.style.color = 'var(--warning-color)';
+      }
+      logToTerminal('[SYSTEM] Webhook URL not configured. Loading mock bounce scan.', 'warning');
+    }
+
+
+    // Distribute the bounces trigger indices evenly across the scan steps
+    bouncesToRender.forEach((b, idx) => {
+      b.triggerAt = Math.floor((idx + 1) * (totalEmails / (bouncesToRender.length + 1)));
+    });
+
+    // Clear visible bounces grid to start the scan
+    bouncesData = [];
+    renderBouncesTable();
+
+    // Start live counter loop
+    let currentScanIndex = 0;
+    let bouncesFound = 0;
+    const scanIntervalTime = totalEmails > 100 ? 20 : 40; // speed up if inbox is huge
+
+    await new Promise((resolve) => {
+      const scanInterval = setInterval(() => {
+        if (currentScanIndex < totalEmails) {
+          currentScanIndex++;
+          
+          // Calculate progress percentage mapping 15% -> 100%
+          const scanPercent = Math.round(15 + (85 * currentScanIndex / totalEmails));
+          
+          // Pop up bounces dynamically when scan reaches their trigger step
+          const triggered = bouncesToRender.filter(b => b.triggerAt === currentScanIndex);
+          if (triggered.length > 0) {
+            bouncesData.push(...triggered);
+            bouncesFound += triggered.length;
+            renderBouncesTable();
+          }
+
+          // Update progress UI
+          if (elements.bounceScanProgressBar) {
+            elements.bounceScanProgressBar.style.width = `${scanPercent}%`;
+          }
+          if (elements.bounceScanPercentage) {
+            elements.bounceScanPercentage.textContent = `${scanPercent}%`;
+          }
+
+          // Update detailed text status
+          const textLabel = elements.bounceScanProgressContainer.querySelector('.card-body span span');
+          if (textLabel) {
+            textLabel.innerHTML = `Scanning Outlook Inbox: email <strong>${currentScanIndex}</strong> of <strong>${totalEmails}</strong> parsed... (${bouncesFound} bounces detected)`;
+          }
+        } else {
+          clearInterval(scanInterval);
+          
+          // Final safety render
+          bouncesData = bouncesToRender;
+          renderBouncesTable();
+          
+          resolve();
+        }
+      }, scanIntervalTime);
+    });
+
+    // Animate completion and cleanup progress view
+    if (elements.bounceScanProgressBar) {
+      elements.bounceScanProgressBar.style.width = '100%';
+    }
+    if (elements.bounceScanPercentage) {
+      elements.bounceScanPercentage.textContent = '100%';
+    }
+    logToTerminal(`[SYSTEM] Inbox scan complete. Identified ${bouncesToRender.length} failed delivery messages.`, 'success');
+
+  } else {
+    // If request failed or returned success = false
+    logToTerminal('[SYSTEM] Inbox query failed or returned no response.', 'error');
+  }
+
+  // Finalize UI states and hide progress bar
+  await sleep(600);
+  if (elements.bounceScanProgressContainer) {
+    elements.bounceScanProgressContainer.classList.add('hidden');
+  }
+  if (elements.btnRefreshBounces) {
+    elements.btnRefreshBounces.innerHTML = '<i class="fa-solid fa-rotate"></i> Fetch & Parse Bounce Emails';
+    elements.btnRefreshBounces.disabled = false;
+  }
+}
+
+/**
+ * Filter and render bounce list
+ */
+function renderBouncesTable() {
+  if (!elements.bouncesTableBody) return;
+
+  const searchQuery = (elements.bounceSearchInput ? elements.bounceSearchInput.value : '').toLowerCase().trim();
+
+  // Filter in-memory results based on keypresses
+  const filteredBounces = bouncesData.filter(b => {
+    return b.bouncedEmail.toLowerCase().includes(searchQuery) ||
+      b.subject.toLowerCase().includes(searchQuery) ||
+      b.reason.toLowerCase().includes(searchQuery);
+  });
+
+  // Update metrics and badges
+  if (elements.metricTotalBounces) {
+    elements.metricTotalBounces.textContent = filteredBounces.length;
+  }
+  if (elements.bouncesCountBadge) {
+    elements.bouncesCountBadge.textContent = `${filteredBounces.length} Bounces Found`;
+  }
+
+  // Update download button
+  if (elements.btnDownloadBounceExcel) {
+    elements.btnDownloadBounceExcel.disabled = filteredBounces.length === 0;
+  }
+
+  // Clear table body
+  elements.bouncesTableBody.innerHTML = '';
+
+  if (filteredBounces.length === 0) {
+    if (elements.bouncesTablePlaceholder) {
+      elements.bouncesTablePlaceholder.classList.remove('hidden');
+      const h3 = elements.bouncesTablePlaceholder.querySelector('h3');
+      const p = elements.bouncesTablePlaceholder.querySelector('p');
+      if (h3 && p) {
+        if (!campaignStartTime) {
+          h3.textContent = 'Bounce Checker Disabled';
+          p.innerHTML = `Please upload your contact list and launch your mail campaign first in the Mail Merge tab.<br>Once emails are sent, you can fetch bounces here.`;
+        } else if (contactsData && contactsData.length > 0) {
+          h3.textContent = 'No Campaign Bounces Detected';
+          p.innerHTML = `No bounced emails matched your active contact list (<strong>${contactsData.length} uploaded contacts</strong>).<br><small style="color: var(--text-dim); margin-top: 4px; display: block;">Unrelated or older inbox bounces were automatically filtered out.</small>`;
+        } else {
+          h3.textContent = 'No Bounce Data Loaded';
+          p.textContent = 'Click the button above to fetch bounced and failed email delivery reports from your inbox.';
+        }
+      }
+    }
+    if (elements.bouncesTableWrapper) {
+      elements.bouncesTableWrapper.classList.add('hidden');
+    }
+    return;
+  }
+
+  if (elements.bouncesTablePlaceholder) {
+    elements.bouncesTablePlaceholder.classList.add('hidden');
+  }
+  if (elements.bouncesTableWrapper) {
+    elements.bouncesTableWrapper.classList.remove('hidden');
+  }
+
+  filteredBounces.forEach(bounce => {
+    const tr = document.createElement('tr');
+    tr.id = `bounce-${bounce.id}`;
+
+    const formattedDate = new Date(bounce.receivedTime).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    tr.innerHTML = `
+      <td><span class="job-date-cell">${formattedDate}</span></td>
+      <td><code class="text-red" style="font-weight: 600;">${escapeHtml(bounce.bouncedEmail)}</code></td>
+      <td><span class="job-title-cell" style="font-size: 0.85rem;">${escapeHtml(bounce.subject)}</span></td>
+      <td>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); max-width: 500px; word-break: break-word; line-height: 1.4;">
+          ${escapeHtml(bounce.reason)}
+        </div>
+      </td>
+    `;
+    elements.bouncesTableBody.appendChild(tr);
+  });
+}
+
+/**
+ * Compile bounce emails and download Excel report
+ */
+function downloadBounceExcelReport() {
+  if (bouncesData.length === 0) return;
+
+  logToTerminal('[SYSTEM] Compiling failed email bounce report...', 'system');
+
+  try {
+    const excelHeaders = ['Bounce Received Date', 'Failed Recipient Email', 'Original Email Subject', 'Failure Diagnostic Reason'];
+    const sheetData = [excelHeaders];
+
+    bouncesData.forEach(b => {
+      sheetData.push([
+        new Date(b.receivedTime).toLocaleString(),
+        b.bouncedEmail,
+        b.subject,
+        b.reason
+      ]);
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Set custom column widths to make sheet look very clean & professional
+    worksheet['!cols'] = [
+      { wch: 22 }, // Date
+      { wch: 30 }, // Failed Recipient Email
+      { wch: 45 }, // Original Subject
+      { wch: 60 }  // Diagnostic Reason
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Failed Emails');
+
+    // Trigger browser file download
+    XLSX.writeFile(workbook, `Failed_Emails_Report_${Date.now()}.xlsx`);
+
+    logToTerminal('[SYSTEM] Bounce Excel report downloaded successfully.', 'success');
+  } catch (err) {
+    console.error('Download bounce report error:', err);
+    logToTerminal(`[SYSTEM] ERROR downloading Excel report: ${err.message}`, 'error');
+  }
+}
+
+/**
+ * Enable/disable the Bounce Checker fetch button based on campaign run state
+ */
+function updateBounceCheckerUI() {
+  const hasSentMails = campaignStartTime !== null;
+  if (elements.btnRefreshBounces) {
+    elements.btnRefreshBounces.disabled = !hasSentMails;
+    if (!hasSentMails) {
+      elements.btnRefreshBounces.setAttribute('title', 'Please launch your campaign and send emails first.');
+    } else {
+      elements.btnRefreshBounces.removeAttribute('title');
+    }
+  }
+  
+  // Re-render table to display the appropriate placeholder state
+  renderBouncesTable();
+}
+
