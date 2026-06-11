@@ -4,7 +4,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
-const dns = require('dns').promises;
 require('dotenv').config();
 
 const app = express();
@@ -209,14 +208,6 @@ app.post('/api/send-email', requireAuth, async (req, res) => {
       success: false,
       error: 'Power Automate URL is not configured. Please add your HTTP POST URL in the .env file.'
     });
-  }
-
-  // DNS MX validation — attempt lookup but fail-safe if local DNS / network issues block MX queries
-  const emailDomain = recipientEmail.trim().split('@')[1];
-  try {
-    await dns.resolveMx(emailDomain);
-  } catch (dnsError) {
-    console.warn(`[WARNING] DNS MX check failed for domain '${emailDomain}' (${dnsError.message}). Proceeding anyway...`);
   }
 
   try {
