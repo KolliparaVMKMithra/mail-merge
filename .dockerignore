@@ -1,0 +1,11 @@
+node_modules
+uploads
+.env
+.git
+.gitignore
+.gitattributes
+.antigravityignore
+.sixth
+*.xlsx
+~$*.xlsx
+*.log
