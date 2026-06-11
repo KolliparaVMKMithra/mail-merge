@@ -16,8 +16,8 @@ COPY . .
 # Create uploads directory and set permissions
 RUN mkdir -p uploads && chmod 777 uploads
 
-# Expose port 7860 (Hugging Face default port)
-EXPOSE 7860
+# Expose port 3000
+EXPOSE 3000
 
 # Start the server
 CMD ["node", "server.js"]

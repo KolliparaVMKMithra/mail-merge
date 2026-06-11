@@ -5,7 +5,7 @@ colorFrom: indigo
 colorTo: purple
 sdk: docker
 pinned: false
-app_port: 7860
+app_port: 3000
 ---
 
 # FlowMail - Power Automate Mail Merge Dashboard
