@@ -32,6 +32,83 @@ let currentSendIndex = 0;
 let stopRequested = false;
 let campaignStartTime = null;
 
+// Campaign Templates Constants
+const CAMPAIGN_TEMPLATES = {
+  initial: {
+    subject: "Amrita University - Invite for Campus Hiring/Internship/Academia Industry Partnership",
+    body: `Dear {Name},
+
+Greetings from Amrita University!
+
+We are delighted to invite **{Company Name}** to participate in the Campus Recruitment drive for 2027 and 2028 batch at Amrita Vishwa Vidyapeetham.
+
+As a multi-campus private university with 16+ schools, including Engineering, Medicine, arts, science, business, etc... and we are proud of our reputation for developing talented leaders.
+
+**Amrita Vishwa Vidyapeetham – Rankings & Accreditations:**
+🏆 **Ranked 8th among Private Universities** – NIRF
+🏆 **NAAC A++ Accredited**
+🏆 **#1 in India** – THE Impact Rankings
+
+**Programs Offered at Amrita School of Engineering:**
+• Cyber Security
+• Computer Science & Engineering
+• Artificial Intelligence
+• Computer & Communication Engineering
+• Civil Engineering
+• Electronics & Communication Engineering
+• Aerospace Engineering
+• Electrical & Computer Engineering
+• Mechanical Engineering
+• Electronics & Computer Engineering
+• Chemical Engineering
+• Electrical & Electronics Engineering
+• Automation & Robotics Engineering
+• Mechanical Engineering
+
+**Amrita School of Business offers the following programs:**
+• Marketing,
+• Finance,
+• Operations,
+• Business Analytics and
+• Human Resources.
+
+Additionally, we offer students the flexibility to pursue **internships for a duration of 3 to 10 months** as part of their academic curriculum.
+
+For further details, please find our **Course Template** attached. We look forward to exploring this opportunity for a meaningful collaboration.
+
+Feel free to reach out for any additional information.
+
+Regards,
+Sreekrishna Bathula
+General Manager - Corporate Relations & Placements
+Amrita Vishwa Vidyapeetham, Amaravati Campus
+Mob: +91 8555831697
+b_sreekrishna@av.amrita.edu
+https://www.amrita.edu/`
+  },
+  followup: {
+    subject: "Follow up: Amrita University - Campus Recruitment / Internship Drive - {Company Name}",
+    body: `Dear {Name},
+
+Hope you are doing well.
+
+I am writing to follow up on our previous invitation to **{Company Name}** to participate in the Campus Recruitment and Internship drive for the 2027 and 2028 batches at Amrita Vishwa Vidyapeetham.
+
+We would be highly honored to collaborate with your esteemed organization. Please let us know if you or your team would be available for a brief call to discuss how we can facilitate the recruitment process.
+
+Looking forward to your positive response.
+
+Regards,
+Sreekrishna Bathula
+General Manager - Corporate Relations & Placements
+Amrita Vishwa Vidyapeetham, Amaravati Campus
+Mob: +91 8555831697
+b_sreekrishna@av.amrita.edu
+https://www.amrita.edu/`
+  }
+};
+
+
 // Statistics
 let stats = {
   total: 0,
@@ -76,8 +153,11 @@ const elements = {
   inputAttachment: document.getElementById('input-attachment'),
   attachmentFileInfo: document.getElementById('attachment-file-info'),
   btnClearAttachment: document.getElementById('btn-clear-attachment'),
+  attachmentUploadGroup: document.getElementById('attachment-upload-group'),
 
   // Email Composer
+  campaignTypeInitial: document.getElementById('campaign-type-initial'),
+  campaignTypeFollowup: document.getElementById('campaign-type-followup'),
   emailSubject: document.getElementById('email-subject'),
   emailBody: document.getElementById('email-body'),
   chkUseTemplate: document.getElementById('chk-use-template'),
@@ -135,6 +215,7 @@ const elements = {
   bounceSearchInput: document.getElementById('bounce-search-input'),
   btnRefreshBounces: document.getElementById('btn-refresh-bounces'),
   btnDownloadBounceExcel: document.getElementById('btn-download-bounce-excel'),
+  btnClearBounces: document.getElementById('btn-clear-bounces'),
   bouncesCountBadge: document.getElementById('bounces-count-badge'),
   bouncesTablePlaceholder: document.getElementById('bounces-table-placeholder'),
   bouncesTableWrapper: document.getElementById('bounces-table-wrapper'),
@@ -158,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
   checkServerStatus();
   setupEventListeners();
   fetchJobs();
+  loadBouncesRepository();
 
   // Pre-populate with Amrita Recruitment Template matching user requirements
   if (elements.emailSubject && !elements.emailSubject.value) {
@@ -302,6 +384,12 @@ function setupEventListeners() {
     elements.chkUseTemplate.addEventListener('change', updateLivePreview);
   }
 
+  // Campaign Type toggling
+  if (elements.campaignTypeInitial && elements.campaignTypeFollowup) {
+    elements.campaignTypeInitial.addEventListener('change', handleCampaignTypeChange);
+    elements.campaignTypeFollowup.addEventListener('change', handleCampaignTypeChange);
+  }
+
   // Placeholder Helper Tag insertion
   elements.tagButtons.forEach(button => {
     button.addEventListener('click', () => {
@@ -370,6 +458,11 @@ function setupEventListeners() {
   if (elements.btnDownloadBounceExcel) {
     elements.btnDownloadBounceExcel.addEventListener('click', () => {
       downloadBounceExcelReport();
+    });
+  }
+  if (elements.btnClearBounces) {
+    elements.btnClearBounces.addEventListener('click', () => {
+      clearBouncesRepository();
     });
   }
   if (elements.bounceSearchInput) {
@@ -1011,6 +1104,8 @@ async function runCampaignQueue() {
     const index = currentSendIndex;
     const contact = contactsData[index];
 
+
+
     // Update row status to Sending
     contact.status = 'Pending';
     contact.logs = 'Sending mail...';
@@ -1122,6 +1217,8 @@ function handleCampaignCompleted() {
   logToTerminal(`[CAMPAIGN] Completed! Total: ${stats.total} | Sent: ${stats.sent} | Failed: ${stats.failed}`, 'success');
   alert(`Campaign Completed!\nSent: ${stats.sent}\nFailed: ${stats.failed}`);
   setCampaignButtonStates();
+  logToTerminal('[SYSTEM] Automatically running bounce email checker to scan inbox...', 'info');
+  fetchBounces();
 }
 
 /**
@@ -1132,6 +1229,8 @@ function handleCampaignStopped() {
   logToTerminal(`[CAMPAIGN] Campaign stopped by user. Processed ${currentSendIndex} of ${stats.total} rows.`, 'warning');
   alert(`Campaign stopped by user.\nProcessed: ${currentSendIndex}\nSent: ${stats.sent}\nFailed: ${stats.failed}`);
   setCampaignButtonStates();
+  logToTerminal('[SYSTEM] Automatically running bounce email checker to scan inbox...', 'info');
+  fetchBounces();
 }
 
 /**
@@ -1591,11 +1690,17 @@ async function fetchBounces() {
   let responseData = null;
 
   try {
+    const payload = {
+      contacts: contactsData ? contactsData.map(c => c.email.toLowerCase().trim()) : [],
+      campaignStartTime: campaignStartTime ? campaignStartTime.toISOString() : null
+    };
+
     const response = await fetch('/api/check-bounces', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify(payload)
     });
     
     if (!response.ok) {
@@ -1617,23 +1722,9 @@ async function fetchBounces() {
   // Hydrate data and trigger Phase 2: Live Scanning Simulation
   if (responseData && responseData.success) {
     const totalEmails = responseData.totalScanned || 50;
-    let bouncesToRender = [];
+    const bouncesToRender = responseData.bounces || [];
 
     if (responseData.configured) {
-      const allBounces = responseData.bounces || [];
-      
-      // Filter based on active contact list uploaded in the Mail Merge campaign and campaignStartTime
-      if (contactsData && contactsData.length > 0) {
-        const contactEmails = new Set(contactsData.map(c => c.email.toLowerCase().trim()));
-        bouncesToRender = allBounces.filter(b => {
-          const matchesEmail = contactEmails.has(b.bouncedEmail.toLowerCase().trim());
-          const matchesTime = campaignStartTime ? (new Date(b.receivedTime) >= campaignStartTime) : true;
-          return matchesEmail && matchesTime;
-        });
-      } else {
-        bouncesToRender = [];
-      }
-
       if (elements.bounceApiWarning) {
         elements.bounceApiWarning.classList.add('hidden');
       }
@@ -1643,43 +1734,6 @@ async function fetchBounces() {
       }
       logToTerminal(`[SYSTEM] Connected to Outlook. Inbox contains ${totalEmails} recent messages.`, 'success');
     } else {
-      // Mock Mode Bounces: dynamically target the loaded contacts and set receivedTime to after campaign starts
-      let mockEmails = ["john.doe.invalid@company.com", "recruiter_box@nonexistent-domain.org", "mailbox.full@university.edu"];
-      if (contactsData && contactsData.length > 0) {
-        mockEmails = contactsData.slice(0, 3).map(c => c.email);
-      }
-
-      const allMockBounces = mockEmails.map((email, idx) => {
-        const reasons = [
-          "550 5.1.1 User Unknown: The email account that you tried to reach does not exist.",
-          "Remote Server returned '550 5.4.11 Host Unknown: DNS lookup failed for target domain'",
-          "552 5.2.2 Mailbox Full: The recipient's mailbox is full and can't accept messages now."
-        ];
-        // Ensure mock received time is after campaign start time
-        const baseTime = campaignStartTime ? campaignStartTime.getTime() : Date.now();
-        const receivedTime = new Date(baseTime + (idx + 1) * 60 * 1000).toISOString();
-
-        return {
-          id: `mock-bounce-${idx + 1}`,
-          receivedTime: receivedTime,
-          bouncedEmail: email,
-          subject: `Undeliverable: Amrita University - Invite for Campus Hiring - ${email.split('@')[0]}`,
-          reason: reasons[idx % reasons.length]
-        };
-      });
-
-      // Filter mock bounces strictly if contact list is loaded
-      if (contactsData && contactsData.length > 0) {
-        const contactEmails = new Set(contactsData.map(c => c.email.toLowerCase().trim()));
-        bouncesToRender = allMockBounces.filter(b => {
-          const matchesEmail = contactEmails.has(b.bouncedEmail.toLowerCase().trim());
-          const matchesTime = campaignStartTime ? (new Date(b.receivedTime) >= campaignStartTime) : true;
-          return matchesEmail && matchesTime;
-        });
-      } else {
-        bouncesToRender = [];
-      }
-
       if (elements.bounceApiWarning) {
         elements.bounceApiWarning.classList.remove('hidden');
       }
@@ -1689,7 +1743,6 @@ async function fetchBounces() {
       }
       logToTerminal('[SYSTEM] Webhook URL not configured. Loading mock bounce scan.', 'warning');
     }
-
 
     // Distribute the bounces trigger indices evenly across the scan steps
     bouncesToRender.forEach((b, idx) => {
@@ -1753,7 +1806,7 @@ async function fetchBounces() {
     if (elements.bounceScanPercentage) {
       elements.bounceScanPercentage.textContent = '100%';
     }
-    logToTerminal(`[SYSTEM] Inbox scan complete. Identified ${bouncesToRender.length} failed delivery messages.`, 'success');
+    logToTerminal(`[SYSTEM] Inbox scan complete. Identified ${bouncesToRender.length} total failed delivery messages.`, 'success');
 
   } else {
     // If request failed or returned success = false
@@ -1770,6 +1823,86 @@ async function fetchBounces() {
     elements.btnRefreshBounces.disabled = false;
   }
 }
+
+/**
+ * Load all bounces from repository on startup
+ */
+async function loadBouncesRepository() {
+  try {
+    const response = await fetch('/api/bounces');
+    const data = await response.json();
+    if (data.success) {
+      bouncesData = data.bounces || [];
+      renderBouncesTable();
+    }
+  } catch (error) {
+    console.error('Error loading bounces repository:', error);
+  }
+}
+
+/**
+ * Clear the entire bounces repository
+ */
+async function clearBouncesRepository() {
+  if (!confirm('Are you sure you want to clear the entire bounce repository? This will permanently delete the saved reports on the server.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/clear-bounces', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      logToTerminal('[SYSTEM] Cleared bounce repository on the server.', 'success');
+      bouncesData = [];
+      renderBouncesTable();
+    } else {
+      alert('Failed to clear bounce repository: ' + data.error);
+    }
+  } catch (error) {
+    console.error('Error clearing bounces repository:', error);
+    alert('Error clearing bounce repository.');
+  }
+}
+
+/**
+ * Delete a single bounce record
+ */
+async function deleteSingleBounce(id) {
+  if (!confirm('Are you sure you want to delete this bounce record?')) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/delete-bounce', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ id })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      logToTerminal('[SYSTEM] Deleted single bounce record from repository.', 'success');
+      bouncesData = bouncesData.filter(b => b.id !== id);
+      renderBouncesTable();
+    } else {
+      alert('Failed to delete bounce record: ' + data.error);
+    }
+  } catch (error) {
+    console.error('Error deleting single bounce:', error);
+    alert('Error deleting bounce record.');
+  }
+}
+
+// Bind to window to allow direct click events on the dynamically built rows
+window.deleteSingleBounce = deleteSingleBounce;
 
 /**
  * Filter and render bounce list
@@ -1799,6 +1932,11 @@ function renderBouncesTable() {
     elements.btnDownloadBounceExcel.disabled = filteredBounces.length === 0;
   }
 
+  // Update clear button
+  if (elements.btnClearBounces) {
+    elements.btnClearBounces.disabled = bouncesData.length === 0;
+  }
+
   // Clear table body
   elements.bouncesTableBody.innerHTML = '';
 
@@ -1808,16 +1946,8 @@ function renderBouncesTable() {
       const h3 = elements.bouncesTablePlaceholder.querySelector('h3');
       const p = elements.bouncesTablePlaceholder.querySelector('p');
       if (h3 && p) {
-        if (!campaignStartTime) {
-          h3.textContent = 'Bounce Checker Disabled';
-          p.innerHTML = `Please upload your contact list and launch your mail campaign first in the Mail Merge tab.<br>Once emails are sent, you can fetch bounces here.`;
-        } else if (contactsData && contactsData.length > 0) {
-          h3.textContent = 'No Campaign Bounces Detected';
-          p.innerHTML = `No bounced emails matched your active contact list (<strong>${contactsData.length} uploaded contacts</strong>).<br><small style="color: var(--text-dim); margin-top: 4px; display: block;">Unrelated or older inbox bounces were automatically filtered out.</small>`;
-        } else {
-          h3.textContent = 'No Bounce Data Loaded';
-          p.textContent = 'Click the button above to fetch bounced and failed email delivery reports from your inbox.';
-        }
+        h3.textContent = 'No Bounce Data Loaded';
+        p.textContent = 'Click the button above to fetch bounced and failed email delivery reports from your inbox.';
       }
     }
     if (elements.bouncesTableWrapper) {
@@ -1853,6 +1983,11 @@ function renderBouncesTable() {
         <div style="font-size: 0.8rem; color: var(--text-secondary); max-width: 500px; word-break: break-word; line-height: 1.4;">
           ${escapeHtml(bounce.reason)}
         </div>
+      </td>
+      <td style="text-align: center;">
+        <button class="btn btn-danger btn-sm" onclick="deleteSingleBounce('${bounce.id}')" style="padding: 4px 8px; font-size: 0.75rem;">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
       </td>
     `;
     elements.bouncesTableBody.appendChild(tr);
@@ -1919,5 +2054,47 @@ function updateBounceCheckerUI() {
   
   // Re-render table to display the appropriate placeholder state
   renderBouncesTable();
+}
+
+/**
+ * Handles toggling between Initial and Follow-up campaign types
+ */
+function handleCampaignTypeChange() {
+  const isFollowup = elements.campaignTypeFollowup && elements.campaignTypeFollowup.checked;
+
+  if (isFollowup) {
+    // Hide attachment group
+    if (elements.attachmentUploadGroup) {
+      elements.attachmentUploadGroup.classList.add('hidden');
+    }
+    // Clear attachment data (simulate click on clear button to clear visual and state)
+    if (elements.btnClearAttachment) {
+      elements.btnClearAttachment.click();
+    }
+    
+    // Set follow-up templates
+    if (elements.emailSubject) {
+      elements.emailSubject.value = CAMPAIGN_TEMPLATES.followup.subject;
+    }
+    if (elements.emailBody) {
+      elements.emailBody.value = CAMPAIGN_TEMPLATES.followup.body;
+    }
+  } else {
+    // Show attachment group
+    if (elements.attachmentUploadGroup) {
+      elements.attachmentUploadGroup.classList.remove('hidden');
+    }
+    
+    // Set initial templates
+    if (elements.emailSubject) {
+      elements.emailSubject.value = CAMPAIGN_TEMPLATES.initial.subject;
+    }
+    if (elements.emailBody) {
+      elements.emailBody.value = CAMPAIGN_TEMPLATES.initial.body;
+    }
+  }
+
+  // Refresh preview and validation
+  updateLivePreview();
 }
 

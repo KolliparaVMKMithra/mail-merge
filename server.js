@@ -643,65 +643,182 @@ function parseBounceEmails(emails) {
   return result;
 }
 
+const BOUNCES_FILE = path.join(__dirname, 'bounces_repository.json');
+
+async function readBouncesRepository() {
+  try {
+    const data = await fs.readFile(BOUNCES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return [];
+    }
+    console.error('Error reading bounces repository:', err);
+    return [];
+  }
+}
+
+async function writeBouncesRepository(bounces) {
+  try {
+    await fs.writeFile(BOUNCES_FILE, JSON.stringify(bounces, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error writing bounces repository:', err);
+  }
+}
+
+/**
+ * Endpoint to get all bounces from repository
+ */
+app.get('/api/bounces', requireAuth, async (req, res) => {
+  const repository = await readBouncesRepository();
+  res.json({ success: true, bounces: repository });
+});
+
+/**
+ * Endpoint to clear the entire bounces repository
+ */
+app.post('/api/clear-bounces', requireAuth, async (req, res) => {
+  await writeBouncesRepository([]);
+  res.json({ success: true });
+});
+
+/**
+ * Endpoint to delete a single bounce by ID
+ */
+app.post('/api/delete-bounce', requireAuth, async (req, res) => {
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ success: false, error: 'Bounce ID is required' });
+  }
+  const repository = await readBouncesRepository();
+  const filtered = repository.filter(b => b.id !== id);
+  await writeBouncesRepository(filtered);
+  res.json({ success: true });
+});
+
 /**
  * Endpoint to read bounce emails from Microsoft Power Automate HTTP trigger
  */
 app.post('/api/check-bounces', requireAuth, async (req, res) => {
+  const { contacts, campaignStartTime } = req.body;
   const bounceUrl = process.env.POWER_AUTOMATE_BOUNCE_URL;
 
-  if (!bounceUrl || bounceUrl.trim() === "") {
+  // If no contacts list is loaded/sent, just return the existing repository without scanning
+  if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+    const repository = await readBouncesRepository();
     return res.json({
       success: true,
-      configured: false,
-      totalScanned: 50,
-      bounces: []
+      configured: !!(bounceUrl && bounceUrl.trim() !== ""),
+      totalScanned: 0,
+      addedCount: 0,
+      bounces: repository
     });
   }
 
-  try {
-    console.log(`Forwarding bounce check request to Power Automate...`);
-    const response = await fetch(bounceUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({})
+  let parsedBounces = [];
+  let configured = false;
+  let totalScanned = 0;
+
+  if (!bounceUrl || bounceUrl.trim() === "") {
+    // Mock Mode Bounces: generate mock bounces for the first 3 contacts in the campaign
+    configured = false;
+    totalScanned = 50;
+
+    const mockEmails = contacts.slice(0, 3);
+    const reasons = [
+      "550 5.1.1 User Unknown: The email account that you tried to reach does not exist.",
+      "Remote Server returned '550 5.4.11 Host Unknown: DNS lookup failed for target domain'",
+      "552 5.2.2 Mailbox Full: The recipient's mailbox is full and can't accept messages now."
+    ];
+
+    const baseTime = campaignStartTime ? new Date(campaignStartTime).getTime() : Date.now();
+
+    parsedBounces = mockEmails.map((email, idx) => {
+      const receivedTime = new Date(baseTime + (idx + 1) * 60 * 1000).toISOString();
+      return {
+        id: `mock-bounce-${email}`,
+        receivedTime: receivedTime,
+        bouncedEmail: email,
+        subject: `Undeliverable: Amrita University - Invite for Campus Hiring - ${email.split('@')[0]}`,
+        reason: reasons[idx % reasons.length]
+      };
     });
-
-    const responseText = await response.text();
-
-    if (response.ok) {
-      let emails = [];
-      try {
-        emails = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Failed to parse bounce response from Power Automate:', responseText);
-        throw new Error('Power Automate did not return valid JSON.');
-      }
-
-      const emailList = Array.isArray(emails) ? emails : (emails.value || []);
-      const parsedBounces = parseBounceEmails(emailList);
-
-      return res.json({
-        success: true,
-        configured: true,
-        totalScanned: emailList.length,
-        bounces: parsedBounces
+  } else {
+    configured = true;
+    try {
+      console.log(`Forwarding bounce check request to Power Automate...`);
+      const response = await fetch(bounceUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
       });
-    } else {
-      console.error(`Power Automate bounce check failed: Status ${response.status} - ${responseText}`);
-      return res.status(response.status).json({
+
+      const responseText = await response.text();
+
+      if (response.ok) {
+        let emails = [];
+        try {
+          emails = JSON.parse(responseText);
+        } catch (e) {
+          console.error('Failed to parse bounce response from Power Automate:', responseText);
+          throw new Error('Power Automate did not return valid JSON.');
+        }
+
+        const emailList = Array.isArray(emails) ? emails : (emails.value || []);
+        totalScanned = emailList.length;
+        parsedBounces = parseBounceEmails(emailList);
+      } else {
+        console.error(`Power Automate bounce check failed: Status ${response.status} - ${responseText}`);
+        return res.status(response.status).json({
+          success: false,
+          error: `Power Automate error (${response.status}): ${responseText || response.statusText}`
+        });
+      }
+    } catch (error) {
+      console.error('Bounce retrieval error:', error);
+      return res.status(500).json({
         success: false,
-        error: `Power Automate error (${response.status}): ${responseText || response.statusText}`
+        error: `Network error retrieving bounce list: ${error.message}`
       });
     }
-  } catch (error) {
-    console.error('Bounce retrieval error:', error);
-    return res.status(500).json({
-      success: false,
-      error: `Network error retrieving bounce list: ${error.message}`
-    });
   }
+
+  // Filter newly parsed/mocked bounces by the active campaign contact list & campaignStartTime
+  const contactsSet = new Set(contacts.map(c => c.toLowerCase().trim()));
+  const filteredBounces = parsedBounces.filter(b => {
+    const matchesEmail = contactsSet.has(b.bouncedEmail.toLowerCase().trim());
+    const matchesTime = campaignStartTime ? (new Date(b.receivedTime) >= new Date(campaignStartTime)) : true;
+    return matchesEmail && matchesTime;
+  });
+
+  // Merge into repository, checking if the email address is already present
+  const repository = await readBouncesRepository();
+  const existingEmails = new Set(repository.map(b => b.bouncedEmail.toLowerCase().trim()));
+  const existingIds = new Set(repository.map(b => b.id));
+
+  let addedCount = 0;
+  for (const b of filteredBounces) {
+    const emailKey = b.bouncedEmail.toLowerCase().trim();
+    if (!existingIds.has(b.id) && !existingEmails.has(emailKey)) {
+      repository.push(b);
+      addedCount++;
+    }
+  }
+
+  // Sort repository by receivedTime descending
+  repository.sort((a, b) => new Date(b.receivedTime) - new Date(a.receivedTime));
+
+  await writeBouncesRepository(repository);
+
+  return res.json({
+    success: true,
+    configured: configured,
+    totalScanned: totalScanned,
+    addedCount: addedCount,
+    bounces: repository
+  });
 });
 
 // Periodic background cleanup — deletes files older than 1 hour every 15 minutes

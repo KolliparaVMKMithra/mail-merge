@@ -98,7 +98,7 @@
             </div>
 
             <!-- Attachment Upload Dropzone -->
-            <div class="upload-group mt-4">
+            <div id="attachment-upload-group" class="upload-group mt-4">
               <label class="field-label">2. Email Attachment <span class="optional-tag">(Optional - Max 25MB)</span></label>
               <div id="dropzone-attachment" class="dropzone">
                 <input type="file" id="input-attachment" hidden>
@@ -137,6 +137,21 @@
           </div>
           <div class="card-body compose-body flex-column h-full">
             
+            <!-- Campaign Type -->
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="field-label" style="margin-bottom: 2px;">Campaign Type</label>
+              <div style="display: flex; gap: 20px; padding: 4px 0;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 0.88rem; font-weight: 500;">
+                  <input type="radio" name="campaign-type" id="campaign-type-initial" value="initial" checked style="accent-color: #6366f1; width: 16px; height: 16px; cursor: pointer;">
+                  Initial Invitation
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 0.88rem; font-weight: 500;">
+                  <input type="radio" name="campaign-type" id="campaign-type-followup" value="followup" style="accent-color: #6366f1; width: 16px; height: 16px; cursor: pointer;">
+                  Follow-up Email
+                </label>
+              </div>
+            </div>
+
             <!-- Subject Line -->
             <div class="form-group">
               <label for="email-subject" class="field-label">Subject Line</label>
@@ -451,11 +466,14 @@
             <input type="text" id="bounce-search-input" class="form-control" placeholder="Search by recipient email or subject...">
           </div>
           <div class="filter-controls flex-row gap-3" style="display: flex; align-items: center; gap: 12px; flex-grow: 0;">
-            <button id="btn-refresh-bounces" class="btn btn-primary" disabled style="white-space: nowrap;">
+            <button id="btn-refresh-bounces" class="btn btn-primary" style="white-space: nowrap;">
               <i class="fa-solid fa-rotate"></i> Fetch & Parse Bounce Emails
             </button>
             <button id="btn-download-bounce-excel" class="btn btn-secondary" disabled style="white-space: nowrap;">
               <i class="fa-solid fa-file-excel"></i> Download Bounce Report
+            </button>
+            <button id="btn-clear-bounces" class="btn btn-danger" disabled style="white-space: nowrap;">
+              <i class="fa-solid fa-trash-can"></i> Clear Repository
             </button>
           </div>
         </div>
@@ -501,6 +519,7 @@
                   <th>Failed Recipient Email</th>
                   <th>Original Email Subject</th>
                   <th>Diagnostics / Failure Reason</th>
+                  <th width="100px" style="text-align: center;">Actions</th>
                 </tr>
               </thead>
               <tbody id="bounces-table-body">
@@ -590,13 +609,12 @@
             <div class="step-card">
               <div class="step-num">3</div>
               <div class="step-content">
-                <h3>Add Email Sending Action</h3>
-                <p>Click <strong>"New step"</strong> and add the <strong>"Send an email (V2)"</strong> action (from Office 365 Outlook or Outlook.com).</p>
-                <ul class="step-bullets">
-                  <li><strong>To</strong>: Select <span class="badge-dynamic">email</span> from the dynamic content trigger.</li>
-                  <li><strong>Subject</strong>: Select <span class="badge-dynamic">subject</span> from the dynamic content trigger.</li>
-                  <li><strong>Body</strong>: Select <span class="badge-dynamic">body</span> from the dynamic content trigger (set format to HTML if you plan to send HTML-formatted emails).</li>
-                </ul>
+                <h3>Add Condition for Optional Attachment</h3>
+                <p>Since follow-up emails and campaigns run without attachments do not contain files, we must branch our flow so Power Automate does not crash trying to read a missing file.</p>
+                <p>Click <strong>"New step"</strong>, add a <strong>"Condition"</strong> control step, and configure it as:</p>
+                <div class="formula-block" style="margin-top: 8px;">
+                  <code>triggerBody()?['attachment']</code> is equal to <code>null</code> (or empty)
+                </div>
               </div>
             </div>
 
@@ -604,14 +622,21 @@
             <div class="step-card">
               <div class="step-num">4</div>
               <div class="step-content">
-                <h3>Configure Dynamic Attachment</h3>
-                <p>Click <strong>"Show advanced options"</strong> at the bottom of the Email Action card.</p>
+                <h3>Configure both branches</h3>
                 <ul class="step-bullets">
-                  <li>Under <strong>Attachments - 1 Name</strong>: Click and select <span class="badge-dynamic">attachment / name</span> from the dynamic content trigger.</li>
-                  <li>Under <strong>Attachments - 1 Content</strong>: Go to the "Expression" panel in the dynamic window and enter the following formula to translate our Base64 string back into binary:
-                    <div class="formula-block">
-                      <code>base64ToBinary(triggerBody()?['attachment']?['contentBytes'])</code>
-                    </div>
+                  <li style="margin-bottom: 12px;"><strong>If Yes (No attachment is sent):</strong>
+                    <p>Add the <strong>"Send an email (V2)"</strong> action. Map <strong>To</strong> to <span class="badge-dynamic">email</span>, <strong>Subject</strong> to <span class="badge-dynamic">subject</span>, and <strong>Body</strong> to <span class="badge-dynamic">body</span>. Leave all attachment fields empty.</p>
+                  </li>
+                  <li><strong>If No (Attachment is sent):</strong>
+                    <p>Add another <strong>"Send an email (V2)"</strong> action with the same field mapping. Click <strong>"Show advanced options"</strong>:</p>
+                    <ul style="margin-top: 6px; padding-left: 20px;">
+                      <li><strong>Attachments - 1 Name</strong>: Choose <span class="badge-dynamic">attachment / name</span>.</li>
+                      <li><strong>Attachments - 1 Content</strong>: Go to Expression and enter:
+                        <div class="formula-block" style="margin: 6px 0;">
+                          <code>base64ToBinary(triggerBody()?['attachment']?['contentBytes'])</code>
+                        </div>
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </div>
