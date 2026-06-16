@@ -114,6 +114,8 @@ if (!fsSync.existsSync(UPLOADS_DIR)) {
 
 // In-memory mapping of unique filenames to original filenames
 const fileRegistry = new Map();
+// In-memory cache of base64-encoded attachment payloads to prevent redundant disk I/O and CPU blocking
+const attachmentCache = new Map();
 
 // Configure multer disk storage for attachments
 const storage = multer.diskStorage({
@@ -218,13 +220,18 @@ app.post('/api/send-email', requireAuth, async (req, res) => {
       const filePath = path.join(UPLOADS_DIR, attachmentFilename);
 
       try {
-        const fileBuffer = await fs.readFile(filePath);
-        const originalName = fileRegistry.get(attachmentFilename) || 'attachment' + path.extname(attachmentFilename);
+        if (attachmentCache.has(attachmentFilename)) {
+          attachmentPayload = attachmentCache.get(attachmentFilename);
+        } else {
+          const fileBuffer = await fs.readFile(filePath);
+          const originalName = fileRegistry.get(attachmentFilename) || 'attachment' + path.extname(attachmentFilename);
 
-        attachmentPayload = {
-          name: originalName,
-          contentBytes: fileBuffer.toString('base64')
-        };
+          attachmentPayload = {
+            name: originalName,
+            contentBytes: fileBuffer.toString('base64')
+          };
+          attachmentCache.set(attachmentFilename, attachmentPayload);
+        }
       } catch (fileErr) {
         console.error('File read error:', fileErr);
         return res.status(400).json({
@@ -239,7 +246,8 @@ app.post('/api/send-email', requireAuth, async (req, res) => {
     // If running locally on localhost, it falls back to the public Render URL so that external email clients can fetch it.
     const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
     const renderUrl = process.env.RENDER_EXTERNAL_URL || 'https://mail-merge-jgn2.onrender.com';
-    const publicHost = req.headers.host.includes('localhost') ? renderUrl : `${protocol}://${req.headers.host}`;
+    const host = req.headers.host || '';
+    const publicHost = host.includes('localhost') ? renderUrl : `${protocol}://${host}`;
     const absoluteLogoUrl = `${publicHost}/amrita-logo.png`;
     const processedBody = body.replace(/\/amrita-logo\.png/g, absoluteLogoUrl).replace(/amrita-logo\.png/g, absoluteLogoUrl);
 
@@ -258,38 +266,58 @@ app.post('/api/send-email', requireAuth, async (req, res) => {
 
     console.log(`Forwarding email to ${payload.email} via Power Automate...`);
 
+    // Setup fetch request with abort controller for a 30-second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 30000);
+
     // Call Power Automate HTTP endpoint
-    const response = await fetch(powerAutomateUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const response = await fetch(powerAutomateUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
 
-    const responseText = await response.text();
+      clearTimeout(timeoutId);
+      const responseText = await response.text();
 
-    if (response.ok) {
-      // Try to parse Power Automate response body for delivery status
-      let paResult = {};
-      try { paResult = JSON.parse(responseText); } catch { }
+      if (response.ok) {
+        // Try to parse Power Automate response body for delivery status
+        let paResult = {};
+        try { paResult = JSON.parse(responseText); } catch { }
 
-      if (paResult.status === 'failed') {
-        console.error(`Delivery failure for ${payload.email}: ${paResult.reason}`);
-        return res.status(200).json({
+        if (paResult.status === 'failed') {
+          console.error(`Delivery failure for ${payload.email}: ${paResult.reason}`);
+          return res.status(200).json({
+            success: false,
+            error: `Delivery failed: ${paResult.reason || 'Office 365 rejected the recipient'}`
+          });
+        }
+
+        console.log(`Successfully sent email to ${payload.email}`);
+        return res.json({ success: true });
+      } else {
+        console.error(`Power Automate returned error for ${payload.email}: Status ${response.status} - ${responseText}`);
+        return res.status(response.status).json({
           success: false,
-          error: `Delivery failed: ${paResult.reason || 'Office 365 rejected the recipient'}`
+          error: `Power Automate error (${response.status}): ${responseText || response.statusText}`
         });
       }
-
-      console.log(`Successfully sent email to ${payload.email}`);
-      return res.json({ success: true });
-    } else {
-      console.error(`Power Automate returned error for ${payload.email}: Status ${response.status} - ${responseText}`);
-      return res.status(response.status).json({
-        success: false,
-        error: `Power Automate error (${response.status}): ${responseText || response.statusText}`
-      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error(`Request to Power Automate timed out for ${payload.email}`);
+        return res.status(504).json({
+          success: false,
+          error: 'Power Automate request timed out (30 seconds limit reached).'
+        });
+      }
+      throw fetchError;
     }
 
   } catch (error) {
@@ -314,171 +342,13 @@ app.post('/api/cleanup', requireAuth, async (req, res) => {
     const filePath = path.join(UPLOADS_DIR, filename);
     await fs.unlink(filePath);
     fileRegistry.delete(filename);
+    attachmentCache.delete(filename);
     res.json({ success: true, message: 'Attachment deleted successfully' });
   } catch (err) {
     res.json({ success: true, message: 'Attachment was already deleted or doesn\'t exist' });
   }
 });
 
-/**
- * Retrieve list of job postings from jobs.json
- */
-app.get('/api/linkedin-jobs', requireAuth, async (req, res) => {
-  const q = req.query.q || '';
-  const location = req.query.location || '';
-
-  const apiKey = process.env.RAPIDAPI_KEY;
-
-  if (apiKey && apiKey.trim() !== '') {
-    try {
-      console.log(`[JOBS API] Fetching real-time jobs from JSearch. Query: "${q}", Location: "${location}"`);
-      const searchQuery = `${q} ${location}`.trim() || 'Software Engineer';
-      const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(searchQuery)}&page=1&num_pages=1`;
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'X-RapidAPI-Key': apiKey.trim(),
-          'X-RapidAPI-Host': 'jsearch.p.rapidapi.com'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`JSearch API responded with status ${response.status}`);
-      }
-
-      const apiResult = await response.json();
-      const apiJobs = apiResult.data || [];
-
-      const normalizedJobs = apiJobs.map((job, idx) => {
-        let jobLoc = '';
-        if (job.job_city) jobLoc += job.job_city;
-        if (job.job_state) jobLoc += (jobLoc ? ', ' : '') + job.job_state;
-        if (job.job_country) jobLoc += (jobLoc ? ', ' : '') + job.job_country;
-        if (!jobLoc) jobLoc = job.job_location || location || 'Remote';
-
-        return {
-          id: job.job_id || `job-api-${idx}-${Date.now()}`,
-          companyName: job.employer_name || 'Unknown Company',
-          title: job.job_title || 'Software Engineer',
-          location: jobLoc,
-          link: job.job_apply_link || 'https://www.linkedin.com/jobs',
-          postedDate: job.job_posted_at_datetime_utc || new Date().toISOString()
-        };
-      });
-
-      return res.json({
-        success: true,
-        hasRealTimeData: true,
-        jobs: normalizedJobs
-      });
-
-    } catch (error) {
-      console.error('[JOBS API] Failed to fetch from JSearch, falling back to local database:', error);
-      // Fall through to fallback mock data
-    }
-  }
-
-  // Fallback / Mock Data Logic
-  try {
-    const jobsPath = path.join(__dirname, 'jobs.json');
-    let data;
-    try {
-      data = await fs.readFile(jobsPath, 'utf8');
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        const defaultJobs = [
-          {
-            "id": "job-001",
-            "companyName": "Microsoft",
-            "title": "Software Engineer Intern",
-            "location": "Hyderabad, Telangana",
-            "link": "https://www.linkedin.com/jobs/view/4012938481",
-            "postedDate": "2026-06-01T10:00:00Z"
-          },
-          {
-            "id": "job-002",
-            "companyName": "TCS",
-            "title": "Frontend Developer",
-            "location": "Hyderabad, Telangana",
-            "link": "https://www.linkedin.com/jobs/view/4028374921",
-            "postedDate": "2026-06-01T08:30:00Z"
-          },
-          {
-            "id": "job-003",
-            "companyName": "Wipro",
-            "title": "Data Analyst",
-            "location": "Hyderabad, Telangana",
-            "link": "https://www.linkedin.com/jobs/view/4039281745",
-            "postedDate": "2026-05-31T14:20:00Z"
-          },
-          {
-            "id": "job-004",
-            "companyName": "Infosys",
-            "title": "Systems Engineer",
-            "location": "Bangalore, Karnataka",
-            "link": "https://www.linkedin.com/jobs/view/4048372910",
-            "postedDate": "2026-05-31T09:00:00Z"
-          },
-          {
-            "id": "job-005",
-            "companyName": "Accenture",
-            "title": "Salesforce Developer",
-            "location": "Hyderabad, Telangana",
-            "link": "https://www.linkedin.com/jobs/view/4059283741",
-            "postedDate": "2026-05-30T11:45:00Z"
-          },
-          {
-            "id": "job-006",
-            "companyName": "Amazon",
-            "title": "Quality Assurance Engineer",
-            "location": "Hyderabad, Telangana",
-            "link": "https://www.linkedin.com/jobs/view/4069382711",
-            "postedDate": "2026-05-30T16:10:00Z"
-          },
-          {
-            "id": "job-007",
-            "companyName": "Tech Mahindra",
-            "title": "Associate Software Engineer",
-            "location": "Hyderabad, Telangana",
-            "link": "https://www.linkedin.com/jobs/view/4078371928",
-            "postedDate": "2026-05-29T13:00:00Z"
-          }
-        ];
-        await fs.writeFile(jobsPath, JSON.stringify(defaultJobs, null, 2), 'utf8');
-        data = JSON.stringify(defaultJobs);
-      } else {
-        throw err;
-      }
-    }
-    const jobs = JSON.parse(data);
-
-    let filteredJobs = jobs;
-    if (q.trim() !== '') {
-      const qLower = q.toLowerCase().trim();
-      filteredJobs = filteredJobs.filter(job => 
-        job.companyName.toLowerCase().includes(qLower) || 
-        job.title.toLowerCase().includes(qLower)
-      );
-    }
-    if (location.trim() !== '') {
-      const locLower = location.toLowerCase().trim();
-      filteredJobs = filteredJobs.filter(job => 
-        job.location.toLowerCase().includes(locLower)
-      );
-    }
-
-    res.json({ 
-      success: true, 
-      hasRealTimeData: false, 
-      jobs: filteredJobs 
-    });
-
-  } catch (error) {
-    console.error('Error reading jobs.json:', error);
-    res.status(500).json({ success: false, error: 'Failed to retrieve job listings.' });
-  }
-});
 
 /**
  * Parser helper to extract bounced recipient and reason from raw emails
@@ -836,6 +706,7 @@ setInterval(async () => {
       if (now - stat.mtimeMs > expiryAge) {
         await fs.unlink(filePath);
         fileRegistry.delete(file);
+        attachmentCache.delete(file);
         console.log(`Auto-cleaned expired file: ${file}`);
       }
     }

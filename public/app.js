@@ -25,7 +25,6 @@ window.fetch = async function (...args) {
 
 // Application State
 let contactsData = [];
-let jobsData = [];
 let uploadedAttachment = null; // { filename, originalName, size }
 let campaignState = 'idle'; // idle | running | paused | completed
 let currentSendIndex = 0;
@@ -190,23 +189,9 @@ const elements = {
 
   // Navigation & Views
   tabMailMerge: document.getElementById('tab-mail-merge'),
-  tabLinkedinJobs: document.getElementById('tab-linkedin-jobs'),
   tabBounceChecker: document.getElementById('tab-bounce-checker'),
   viewMailMerge: document.getElementById('view-mail-merge'),
-  viewLinkedinJobs: document.getElementById('view-linkedin-jobs'),
   viewBounceChecker: document.getElementById('view-bounce-checker'),
-
-  // LinkedIn Jobs Elements
-  metricTotalJobs: document.getElementById('metric-total-jobs'),
-  metricReadyPitch: document.getElementById('metric-ready-pitch'),
-  jobSearchInput: document.getElementById('job-search-input'),
-  jobLocationInput: document.getElementById('job-location-input'),
-  btnRefreshJobs: document.getElementById('btn-refresh-jobs'),
-  jobsCountBadge: document.getElementById('jobs-count-badge'),
-  jobsTablePlaceholder: document.getElementById('jobs-table-placeholder'),
-  jobsTableWrapper: document.getElementById('jobs-table-wrapper'),
-  jobsTableBody: document.getElementById('jobs-table-body'),
-  jobsApiWarning: document.getElementById('jobs-api-warning'),
 
   // Bounce Checker Elements
   bounceApiWarning: document.getElementById('bounce-api-warning'),
@@ -238,7 +223,6 @@ const elements = {
 document.addEventListener('DOMContentLoaded', () => {
   checkServerStatus();
   setupEventListeners();
-  fetchJobs();
   loadBouncesRepository();
 
   // Pre-populate with Amrita Recruitment Template matching user requirements
@@ -412,8 +396,8 @@ function setupEventListeners() {
   }
 
   // SPA Navigation View Toggling
-  const tabs = [elements.tabMailMerge, elements.tabLinkedinJobs, elements.tabBounceChecker];
-  const views = [elements.viewMailMerge, elements.viewLinkedinJobs, elements.viewBounceChecker];
+  const tabs = [elements.tabMailMerge, elements.tabBounceChecker];
+  const views = [elements.viewMailMerge, elements.viewBounceChecker];
 
   function switchTab(activeTab, activeView) {
     tabs.forEach(t => { if (t) t.classList.remove('active'); });
@@ -424,9 +408,6 @@ function setupEventListeners() {
 
   if (elements.tabMailMerge) {
     elements.tabMailMerge.addEventListener('click', () => switchTab(elements.tabMailMerge, elements.viewMailMerge));
-  }
-  if (elements.tabLinkedinJobs) {
-    elements.tabLinkedinJobs.addEventListener('click', () => switchTab(elements.tabLinkedinJobs, elements.viewLinkedinJobs));
   }
   if (elements.tabBounceChecker) {
     elements.tabBounceChecker.addEventListener('click', () => switchTab(elements.tabBounceChecker, elements.viewBounceChecker));
@@ -472,32 +453,7 @@ function setupEventListeners() {
   }
 
 
-  // LinkedIn Jobs Filters & Controls
-  if (elements.jobSearchInput) {
-    elements.jobSearchInput.addEventListener('input', renderJobsTable);
-    elements.jobSearchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        elements.btnRefreshJobs.click();
-      }
-    });
-  }
-  if (elements.jobLocationInput) {
-    elements.jobLocationInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        elements.btnRefreshJobs.click();
-      }
-    });
-  }
-  if (elements.btnRefreshJobs) {
-    elements.btnRefreshJobs.addEventListener('click', () => {
-      elements.btnRefreshJobs.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing';
-      elements.btnRefreshJobs.disabled = true;
-      fetchJobs().finally(() => {
-        elements.btnRefreshJobs.innerHTML = '<i class="fa-solid fa-rotate"></i> Refresh';
-        elements.btnRefreshJobs.disabled = false;
-      });
-    });
-  }
+
 
   // Initialize Bounce Checker UI state (starts disabled until campaign sent)
   updateBounceCheckerUI();
@@ -1404,241 +1360,7 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// ==========================================================================
-// 10. LINKEDIN PLACEMENTS PIPELINE LOGIC
-// ==========================================================================
 
-/**
- * Fetch jobs from the secure backend endpoint
- */
-async function fetchJobs() {
-  try {
-    const q = elements.jobSearchInput ? elements.jobSearchInput.value.trim() : '';
-    const location = elements.jobLocationInput ? elements.jobLocationInput.value.trim() : 'Hyderabad';
-
-    const url = `/api/linkedin-jobs?q=${encodeURIComponent(q)}&location=${encodeURIComponent(location)}`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.success) {
-      jobsData = data.jobs || [];
-
-      // Show/hide API warning based on real-time data status
-      if (elements.jobsApiWarning) {
-        if (data.hasRealTimeData) {
-          elements.jobsApiWarning.classList.add('hidden');
-        } else {
-          elements.jobsApiWarning.classList.remove('hidden');
-        }
-      }
-
-      renderJobsTable();
-    } else {
-      console.error('Error fetching jobs:', data.error);
-      logToTerminal(`[SYSTEM] Failed to load LinkedIn jobs: ${data.error}`, 'error');
-    }
-  } catch (error) {
-    console.error('Network error fetching jobs:', error);
-    logToTerminal('[SYSTEM] Network error loading LinkedIn jobs. Make sure server is running.', 'error');
-  }
-}
-
-/**
- * Filter and render job postings
- */
-function renderJobsTable() {
-  if (!elements.jobsTableBody) return;
-
-  const searchQuery = (elements.jobSearchInput ? elements.jobSearchInput.value : '').toLowerCase().trim();
-
-  // In-memory filter on currently loaded jobsData for instant keypress filtering
-  const filteredJobs = jobsData.filter(job => {
-    return job.companyName.toLowerCase().includes(searchQuery) ||
-      job.title.toLowerCase().includes(searchQuery) ||
-      job.location.toLowerCase().includes(searchQuery);
-  });
-
-  // Update metrics row
-  updateJobsMetrics(filteredJobs);
-
-  // Update badge count
-  if (elements.jobsCountBadge) {
-    elements.jobsCountBadge.textContent = `${filteredJobs.length} Postings Found`;
-  }
-
-  // Clear table body
-  elements.jobsTableBody.innerHTML = '';
-
-  if (filteredJobs.length === 0) {
-    elements.jobsTablePlaceholder.classList.remove('hidden');
-    elements.jobsTableWrapper.classList.add('hidden');
-    return;
-  }
-
-  elements.jobsTablePlaceholder.classList.add('hidden');
-  elements.jobsTableWrapper.classList.remove('hidden');
-
-  filteredJobs.forEach(job => {
-    const tr = document.createElement('tr');
-    tr.id = `job-row-${job.id}`;
-
-    // Get color theme based on first letter of company name
-    const colors = [
-      'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
-      'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-      'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-      'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-      'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)'
-    ];
-    const letter = job.companyName.charAt(0).toUpperCase();
-    const colorIndex = (letter.charCodeAt(0) || 0) % colors.length;
-    const gradient = colors[colorIndex];
-
-    const formattedDate = new Date(job.postedDate).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-
-    tr.innerHTML = `
-      <td>
-        <div class="company-logo-placeholder" style="background: ${gradient};">
-          ${letter}
-        </div>
-      </td>
-      <td>
-        <span class="company-name">${escapeHtml(job.companyName)}</span>
-      </td>
-      <td>
-        <span class="job-title-cell">${escapeHtml(job.title)}</span>
-      </td>
-      <td>
-        <span class="job-location-badge">
-          <i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}
-        </span>
-      </td>
-      <td>
-        <span class="job-date-cell">${formattedDate}</span>
-      </td>
-      <td>
-        <div class="job-actions">
-          <a href="${escapeHtml(job.link)}" target="_blank" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 4px;">
-            <i class="fa-solid fa-up-right-from-square"></i> View Post
-          </a>
-          <button class="btn btn-pitch btn-sm" onclick="handlePitchRecruiter('${job.id}')">
-            <i class="fa-solid fa-envelope"></i> Pitch Recruiter
-          </button>
-        </div>
-      </td>
-    `;
-    elements.jobsTableBody.appendChild(tr);
-  });
-}
-
-/**
- * Calculate and render metrics values
- */
-function updateJobsMetrics(filteredJobs) {
-  if (elements.metricTotalJobs) {
-    elements.metricTotalJobs.textContent = jobsData.length;
-  }
-  if (elements.metricReadyPitch) {
-    elements.metricReadyPitch.textContent = filteredJobs.length;
-  }
-}
-
-/**
- * 1-Click Recruitment Pitch Composer Integrator
- */
-function handlePitchRecruiter(jobId) {
-  const job = jobsData.find(j => j.id === jobId);
-  if (!job) return;
-
-  // Switch back to Mail Merge workspace SPA pane
-  if (elements.tabMailMerge) {
-    elements.tabMailMerge.click();
-  }
-
-  // Pre-fill subject with target format
-  if (elements.emailSubject) {
-    elements.emailSubject.value = `Invitation for Campus Recruitment Drive - Amrita University x ${job.companyName}`;
-  }
-
-  // Pre-fill email body with customized recruitment pitch
-  if (elements.emailBody) {
-    elements.emailBody.value = `Dear Hiring Manager,
-
-Greetings from Amrita University!
-
-We noticed your active job posting for **${job.title}** in **${job.location}** on LinkedIn and would love to collaborate with **${job.companyName}** for our upcoming Campus Recruitment Drive.
-
-As a multi-campus private university with 16+ schools, including Engineering, Medicine, arts, science, business, etc... and we are proud of our reputation for developing talented leaders.
-
-**Amrita Vishwa Vidyapeetham – Rankings & Accreditations:**
-🏆 **Ranked 8th among Private Universities** – NIRF
-🏆 **NAAC A++ Accredited**
-🏆 **#1 in India** – THE Impact Rankings
-
-**Programs Offered at Amrita School of Engineering:**
-• Cyber Security
-• Computer Science & Engineering
-• Artificial Intelligence
-• Computer & Communication Engineering
-• Civil Engineering
-• Electronics & Communication Engineering
-• Aerospace Engineering
-• Electrical & Computer Engineering
-• Mechanical Engineering
-• Electronics & Computer Engineering
-• Chemical Engineering
-• Electrical & Electronics Engineering
-• Automation & Robotics Engineering
-
-**Amrita School of Business offers the following programs:**
-• Marketing,
-• Finance,
-• Operations,
-• Business Analytics and
-• Human Resources.
-
-Additionally, we offer students the flexibility to pursue **internships for a duration of 3 to 10 months** as part of their academic curriculum.
-
-For further details, please find our **Course Template** attached. We look forward to exploring this opportunity for a meaningful collaboration.
-
-Feel free to reach out for any additional information.
-
-Regards,
-Sreekrishna Bathula
-General Manager - Corporate Relations & Placements
-Amrita Vishwa Vidyapeetham, Amaravati Campus
-Mob: +91 8555831697
-b_sreekrishna@av.amrita.edu
-https://www.amrita.edu/`;
-  }
-
-  // Populate recruiter details in Contacts Table so they can run campaign immediately!
-  contactsData = [{
-    rowIndex: 1,
-    companyName: job.companyName,
-    name: 'Hiring Manager',
-    email: `recruiter@${job.companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
-    status: 'Pending',
-    logs: `Ready to pitch for ${job.title} in ${job.location}`
-  }];
-
-  // Update contacts table UI
-  renderContactsTable();
-
-  // Validate form inputs to enable campaign button
-  validateFormInputs();
-
-  // Re-render live preview
-  updateLivePreview();
-
-  // Log to terminal
-  logToTerminal(`[SYSTEM] Auto-composed recruitment pitch targeting ${job.companyName} (${job.title} - ${job.location}).`, 'success');
-}
 
 // ==========================================================================
 // 11. BOUNCE CHECKER FLOW LOGIC
